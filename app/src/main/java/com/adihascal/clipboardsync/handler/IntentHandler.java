@@ -1,10 +1,19 @@
 package com.adihascal.clipboardsync.handler;
 
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
 import android.net.Uri;
+import android.support.v4.app.NotificationCompat;
 
+import com.adihascal.clipboardsync.R;
+import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.ui.PasteActivity;
+
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.File;
@@ -14,6 +23,8 @@ import java.io.InputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
+
+import static android.content.Context.NOTIFICATION_SERVICE;
 
 public class IntentHandler implements IClipHandler
 {
@@ -70,7 +81,7 @@ public class IntentHandler implements IClipHandler
         {
             Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
             File f = new File(uri.getPath());
-            DataOutputStream out = new DataOutputStream(s.getOutputStream());
+            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream()));
 
             FileInputStream in = new FileInputStream(f);
             out.writeUTF("application/x-java-serialized-object");
@@ -79,13 +90,14 @@ public class IntentHandler implements IClipHandler
             out.write((int) f.length());
             byte[] data = readFully(in, -1, true);
             out.write(data);
+            out.flush();
             in.close();
         }
         else if (intent.getAction().equals(Intent.ACTION_SEND_MULTIPLE))
         {
             ArrayList<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
 
-            DataOutputStream out = new DataOutputStream(s.getOutputStream());
+            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream()));
             out.writeUTF("application/x-java-serialized-object");
             out.write(uris.size());
 
@@ -99,13 +111,23 @@ public class IntentHandler implements IClipHandler
                 out.write(data);
                 in.close();
             }
+            out.flush();
         }
     }
 
     @Override
-    public void receiveClip(Socket s, ClipboardManager manager) throws IOException
+    public void receiveClip(DataInputStream s, ClipboardManager manager) throws IOException
     {
-        //TODO write a file explorer activity and start it from here
-        //DataInputStream in = new DataInputStream(s.getInputStream());
+        Intent pasteIntent = new Intent();
+        pasteIntent.setClass(AppDummy.getContext(), PasteActivity.class);
+        pasteIntent.putExtra("data", readFully(s, -1, true));
+        AppDummy.getContext().startActivity(pasteIntent);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext());
+        builder.setSmallIcon(R.mipmap.ic_launcher_round)
+                .setContentTitle("Ready to paste")
+                .setContentText("A clip containing file data was received by ClipboardSync and is available for pasting. tap to choose destination")
+                .setContentIntent(PendingIntent.getActivity(AppDummy.getContext(), 0, pasteIntent, PendingIntent.FLAG_UPDATE_CURRENT))
+                .setLocalOnly(true);
+        ((NotificationManager) AppDummy.getContext().getSystemService(NOTIFICATION_SERVICE)).notify(0, builder.build());
     }
 }

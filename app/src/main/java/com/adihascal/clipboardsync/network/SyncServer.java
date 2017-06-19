@@ -34,7 +34,7 @@ public class SyncServer extends SyncThread
                 ClipboardManager manager = (ClipboardManager) this.appContext.getSystemService(Context.CLIPBOARD_SERVICE);
                 if (ClipHandlerRegistry.isMimeTypeSupported(type))
                 {
-                    ClipHandlerRegistry.getHandlerFor(type).receiveClip(s, manager);
+                    ClipHandlerRegistry.getHandlerFor(type).receiveClip(new DataInputStream(s.getInputStream()), manager);
                 }
                 s.close();
             }
