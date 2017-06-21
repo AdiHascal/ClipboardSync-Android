@@ -16,10 +16,11 @@ public class TextHandler implements IClipHandler
     @Override
     public void sendClip(Socket s, ClipData clip) throws IOException
     {
-        DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream()));
+        DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream(), 104857600));
         out.writeUTF("text/plain");
         out.writeUTF((String) clip.getItemAt(0).getText());
         out.flush();
+        s.close();
     }
 
     @Override

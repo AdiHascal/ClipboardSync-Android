@@ -21,7 +21,7 @@ public class SyncClient extends SyncThread
     @Override
     public void run()
     {
-        Socket s = null;
+        Socket s;
         try
         {
             if (ClipHandlerRegistry.isMimeTypeSupported(this.clip.getDescription().getMimeType(0)))
@@ -33,20 +33,6 @@ public class SyncClient extends SyncThread
         catch (IOException | InstantiationException | IllegalAccessException e)
         {
             e.printStackTrace();
-        }
-        finally
-        {
-            try
-            {
-                if (s != null)
-                {
-                    s.close();
-                }
-            }
-            catch (IOException e)
-            {
-                e.printStackTrace();
-            }
         }
     }
 }

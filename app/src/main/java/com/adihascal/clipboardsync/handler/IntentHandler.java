@@ -72,6 +72,22 @@ public class IntentHandler implements IClipHandler
         return var3;
     }
 
+    private String parseUri(Uri u)
+    {
+        if (u.getScheme().equals("file"))
+        {
+            return u.getPath();
+        }
+        else if (u.getScheme().equals("content"))
+        {
+            return u.getPath().substring(5);
+        }
+        else
+        {
+            throw new UnsupportedOperationException(u.getScheme());
+        }
+    }
+
     @Override
     public void sendClip(Socket s, ClipData clip) throws IOException
     {
@@ -80,16 +96,17 @@ public class IntentHandler implements IClipHandler
         if (intent.getAction().equals(Intent.ACTION_SEND))
         {
             Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-            File f = new File(uri.getPath());
-            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream()));
+            File f = new File(parseUri(uri));
+            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream(), 104857600));
 
-            FileInputStream in = new FileInputStream(f);
             out.writeUTF("application/x-java-serialized-object");
             out.write(1);
+            FileInputStream in = new FileInputStream(f);
             out.writeUTF(f.getName());
-            out.write((int) f.length());
+            out.writeLong(f.length());
             byte[] data = readFully(in, -1, true);
             out.write(data);
+            System.out.println("flushing...");
             out.flush();
             in.close();
         }
@@ -106,13 +123,14 @@ public class IntentHandler implements IClipHandler
                 File f = new File(uri.getPath());
                 FileInputStream in = new FileInputStream(f);
                 out.writeUTF(f.getName());
-                out.write((int) f.length());
+                out.writeLong(f.length());
                 byte[] data = readFully(in, -1, true);
                 out.write(data);
                 in.close();
             }
             out.flush();
         }
+        s.close();
     }
 
     @Override
@@ -120,6 +138,7 @@ public class IntentHandler implements IClipHandler
     {
         Intent pasteIntent = new Intent();
         pasteIntent.setClass(AppDummy.getContext(), PasteActivity.class);
+        pasteIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         pasteIntent.putExtra("data", readFully(s, -1, true));
         AppDummy.getContext().startActivity(pasteIntent);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext());

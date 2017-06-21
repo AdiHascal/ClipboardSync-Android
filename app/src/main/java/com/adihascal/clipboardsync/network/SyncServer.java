@@ -46,7 +46,10 @@ public class SyncServer extends SyncThread
             {
                 try
                 {
-                    serverSocket.close();
+                    if (serverSocket != null)
+                    {
+                        serverSocket.close();
+                    }
                 }
                 catch (IOException e)
                 {

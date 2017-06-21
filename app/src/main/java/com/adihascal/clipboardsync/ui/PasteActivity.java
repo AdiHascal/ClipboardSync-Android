@@ -40,7 +40,7 @@ public class PasteActivity extends AppCompatActivity
             try
             {
                 String folder = intent.getStringExtra(DirectoryChooserActivity.RESULT_SELECTED_DIR);
-                int nFiles = data.readInt();
+                int nFiles = data.read();
                 byte[] buf;
 
                 for (int i = 0; i < nFiles; i++)
@@ -49,7 +49,7 @@ public class PasteActivity extends AppCompatActivity
                     if (f.createNewFile())
                     {
                         FileOutputStream out = new FileOutputStream(f);
-                        buf = new byte[data.read()];
+                        buf = new byte[(int) data.readLong()];
                         data.read(buf);
                         out.write(buf);
                         out.close();

@@ -51,10 +51,21 @@ public class NetworkThreadCreator extends Service implements ClipboardManager.On
     @Override
     public void onPrimaryClipChanged()
     {
-        ClipData clip = ((ClipboardManager) AppDummy.getContext().getSystemService(CLIPBOARD_SERVICE)).getPrimaryClip();
+        ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(CLIPBOARD_SERVICE);
+        ClipData clip = manager.getPrimaryClip();
         if (this.address != null && (clip.getDescription().getLabel() == null || !clip.getDescription().getLabel().equals(Reference.ORIGIN)))
         {
             new SyncClient(this.address, AppDummy.getContext(), clip).start();
+        }
+        manager.removePrimaryClipChangedListener(this);
+        try
+        {
+            Thread.sleep(100);
+            manager.addPrimaryClipChangedListener(this);
+        }
+        catch (InterruptedException e)
+        {
+            e.printStackTrace();
         }
     }
 }

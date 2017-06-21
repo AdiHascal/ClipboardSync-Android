@@ -44,7 +44,7 @@
 
                 <category android:name="android.intent.category.DEFAULT"/>
 
-                <data android:mimeType="image/*"/>
+                <data android:mimeType="*/*"/>
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND"/>
@@ -58,11 +58,12 @@
 
                 <category android:name="android.intent.category.DEFAULT"/>
 
-                <data android:mimeType="image/*"/>
+                <data android:mimeType="*/*"/>
             </intent-filter>
         </activity>
         <activity android:name=".ui.PasteActivity">
         </activity>
+        <activity android:name="net.rdrei.android.dirchooser.DirectoryChooserActivity"/>
     </application>
 
 </manifest>
