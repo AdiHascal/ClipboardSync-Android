@@ -97,18 +97,21 @@ public class IntentHandler implements IClipHandler
         {
             Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
             File f = new File(parseUri(uri));
-            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream(), 104857600));
+            if (f.exists())
+            {
+                DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream(), 104857600));
 
-            out.writeUTF("application/x-java-serialized-object");
-            out.write(1);
-            FileInputStream in = new FileInputStream(f);
-            out.writeUTF(f.getName());
-            out.writeLong(f.length());
-            byte[] data = readFully(in, -1, true);
-            out.write(data);
-            System.out.println("flushing...");
-            out.flush();
-            in.close();
+                out.writeUTF("application/x-java-serialized-object");
+                out.write(1);
+                FileInputStream in = new FileInputStream(f);
+                out.writeUTF(f.getName());
+                out.writeLong(f.length());
+                byte[] data = readFully(in, -1, true);
+                out.write(data);
+                System.out.println("flushing...");
+                out.flush();
+                in.close();
+            }
         }
         else if (intent.getAction().equals(Intent.ACTION_SEND_MULTIPLE))
         {

@@ -6,6 +6,7 @@ import android.content.ClipboardManager;
 import android.content.Intent;
 import android.os.IBinder;
 
+import com.adihascal.clipboardsync.network.Handshake;
 import com.adihascal.clipboardsync.network.SyncClient;
 import com.adihascal.clipboardsync.network.SyncServer;
 import com.adihascal.clipboardsync.reference.Reference;
@@ -33,6 +34,7 @@ public class NetworkThreadCreator extends Service implements ClipboardManager.On
     public int onStartCommand(Intent intent, int flags, int startId)
     {
         this.address = intent.getStringExtra("device_address");
+        new Thread(new Handshake(this.address)).start();
         if (this.address != null)
         {
             this.server = new SyncServer(this.address, AppDummy.getContext());

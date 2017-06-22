@@ -5,6 +5,8 @@ import android.content.Context;
 
 import com.adihascal.clipboardsync.handler.ClipHandlerRegistry;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -29,13 +31,21 @@ public class SyncServer extends SyncThread
             {
                 this.serverSocket = new ServerSocket(63708);
                 Socket s = this.serverSocket.accept();
-                DataInputStream is = new DataInputStream(s.getInputStream());
+                DataInputStream socketIn = new DataInputStream(s.getInputStream());
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                int i;
+                do
+                {
+                    i = socketIn.read();
+                    if (i != -1)
+                    {
+                        out.write(i);
+                    }
+                } while (i != -1);
+                DataInputStream is = new DataInputStream(new ByteArrayInputStream(out.toByteArray()));
                 String type = is.readUTF();
                 ClipboardManager manager = (ClipboardManager) this.appContext.getSystemService(Context.CLIPBOARD_SERVICE);
-                if (ClipHandlerRegistry.isMimeTypeSupported(type))
-                {
-                    ClipHandlerRegistry.getHandlerFor(type).receiveClip(new DataInputStream(s.getInputStream()), manager);
-                }
+                ClipHandlerRegistry.getHandlerFor(type).receiveClip(is, manager);
                 s.close();
             }
             catch (IOException | InstantiationException | IllegalAccessException e)
