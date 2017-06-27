@@ -16,7 +16,7 @@ import java.io.IOException;
 
 public class NetworkThreadCreator extends Service implements ClipboardManager.OnPrimaryClipChangedListener
 {
-    private SyncServer server;
+    public volatile static boolean isBusy = false;
     private String address;
 
     public NetworkThreadCreator() throws IOException
@@ -37,8 +37,8 @@ public class NetworkThreadCreator extends Service implements ClipboardManager.On
         new Thread(new Handshake(this.address)).start();
         if (this.address != null)
         {
-            this.server = new SyncServer(this.address, AppDummy.getContext());
-            this.server.start();
+            SyncServer server = new SyncServer(this.address, AppDummy.getContext());
+            server.start();
         }
         return super.onStartCommand(intent, flags, startId);
     }
@@ -46,28 +46,38 @@ public class NetworkThreadCreator extends Service implements ClipboardManager.On
     @Override
     public void onDestroy()
     {
-        this.server.shouldRun = false;
+        try
+        {
+            SyncServer.serverSocket.close();
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
         super.onDestroy();
     }
 
     @Override
     public void onPrimaryClipChanged()
     {
-        ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(CLIPBOARD_SERVICE);
-        ClipData clip = manager.getPrimaryClip();
-        if (this.address != null && (clip.getDescription().getLabel() == null || !clip.getDescription().getLabel().equals(Reference.ORIGIN)))
+        if (!isBusy)
         {
-            new SyncClient(this.address, AppDummy.getContext(), clip).start();
-        }
-        manager.removePrimaryClipChangedListener(this);
-        try
-        {
-            Thread.sleep(100);
-            manager.addPrimaryClipChangedListener(this);
-        }
-        catch (InterruptedException e)
-        {
-            e.printStackTrace();
+            ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(CLIPBOARD_SERVICE);
+            ClipData clip = manager.getPrimaryClip();
+            if (this.address != null && (clip.getDescription().getLabel() == null || !clip.getDescription().getLabel().equals(Reference.ORIGIN)))
+            {
+                new SyncClient(this.address, AppDummy.getContext(), clip).start();
+            }
+            manager.removePrimaryClipChangedListener(this);
+            try
+            {
+                Thread.sleep(100);
+                manager.addPrimaryClipChangedListener(this);
+            }
+            catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
         }
     }
 }

@@ -5,12 +5,17 @@ import android.app.PendingIntent;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
+import android.provider.MediaStore;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.CursorLoader;
 
 import com.adihascal.clipboardsync.R;
+import com.adihascal.clipboardsync.service.NetworkThreadCreator;
 import com.adihascal.clipboardsync.ui.AppDummy;
 import com.adihascal.clipboardsync.ui.PasteActivity;
+import com.adihascal.clipboardsync.util.PasteDataHolder;
 
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -21,13 +26,16 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static android.content.Context.NOTIFICATION_SERVICE;
 
 public class IntentHandler implements IClipHandler
 {
+    public static Socket socket;
+
     //shamelessly copied from sun.misc.IOUtils
     private static byte[] readFully(InputStream stream, int length, boolean readAll) throws IOException
     {
@@ -72,68 +80,51 @@ public class IntentHandler implements IClipHandler
         return var3;
     }
 
-    private String parseUri(Uri u)
+    private static String getRealPathFromURI(Uri uri)
     {
-        if (u.getScheme().equals("file"))
-        {
-            return u.getPath();
-        }
-        else if (u.getScheme().equals("content"))
-        {
-            return u.getPath().substring(5);
-        }
-        else
-        {
-            throw new UnsupportedOperationException(u.getScheme());
-        }
+        String[] proj = {MediaStore.Images.Media.DATA};
+        CursorLoader loader = new CursorLoader(AppDummy.getContext(), uri, proj, null, null, null);
+        Cursor cursor = loader.loadInBackground();
+        int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+        cursor.moveToFirst();
+        String result = cursor.getString(column_index);
+        cursor.close();
+        return result;
     }
 
     @Override
     public void sendClip(Socket s, ClipData clip) throws IOException
     {
         Intent intent = clip.getItemAt(0).getIntent();
+        DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream()));
+        List<Uri> uris;
 
         if (intent.getAction().equals(Intent.ACTION_SEND))
         {
-            Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-            File f = new File(parseUri(uri));
-            if (f.exists())
-            {
-                DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream(), 104857600));
-
-                out.writeUTF("application/x-java-serialized-object");
-                out.write(1);
-                FileInputStream in = new FileInputStream(f);
-                out.writeUTF(f.getName());
-                out.writeLong(f.length());
-                byte[] data = readFully(in, -1, true);
-                out.write(data);
-                System.out.println("flushing...");
-                out.flush();
-                in.close();
-            }
+            uris = Collections.singletonList((Uri) intent.getParcelableExtra(Intent.EXTRA_STREAM));
         }
-        else if (intent.getAction().equals(Intent.ACTION_SEND_MULTIPLE))
+        else
         {
-            ArrayList<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
-
-            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream()));
-            out.writeUTF("application/x-java-serialized-object");
-            out.write(uris.size());
-
-            for (Uri uri : uris)
-            {
-                File f = new File(uri.getPath());
-                FileInputStream in = new FileInputStream(f);
-                out.writeUTF(f.getName());
-                out.writeLong(f.length());
-                byte[] data = readFully(in, -1, true);
-                out.write(data);
-                in.close();
-            }
-            out.flush();
+            uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
         }
-        s.close();
+
+        out.writeUTF("application/x-java-serialized-object");
+        out.writeInt(uris.size());
+
+        for (Uri uri : uris)
+        {
+            File f = new File(getRealPathFromURI(uri));
+            FileInputStream in = new FileInputStream(f);
+            out.writeUTF(f.getName());
+            out.writeLong(f.length());
+            byte[] data = readFully(in, -1, true);
+            out.write(data);
+            in.close();
+        }
+        out.flush();
+        System.out.println("flushing...");
+        socket.close();
+        NetworkThreadCreator.isBusy = false;
     }
 
     @Override
@@ -142,7 +133,7 @@ public class IntentHandler implements IClipHandler
         Intent pasteIntent = new Intent();
         pasteIntent.setClass(AppDummy.getContext(), PasteActivity.class);
         pasteIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        pasteIntent.putExtra("data", readFully(s, -1, true));
+        PasteDataHolder.setBytes(readFully(s, -1, true));
         AppDummy.getContext().startActivity(pasteIntent);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext());
         builder.setSmallIcon(R.mipmap.ic_launcher_round)

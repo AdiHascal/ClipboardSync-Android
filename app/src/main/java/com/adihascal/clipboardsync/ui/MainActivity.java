@@ -101,7 +101,8 @@ public class MainActivity extends AppCompatActivity
         {
             try
             {
-                Frame frame = new Frame.Builder().setBitmap((Bitmap) data.getExtras().get("data")).build();
+                Bitmap bmap = ((Bitmap) data.getExtras().get("data")).copy(Bitmap.Config.ARGB_8888, true);
+                Frame frame = new Frame.Builder().setBitmap(bmap).build();
                 BarcodeDetector detector = new BarcodeDetector.Builder(this).build();
                 SparseArray<Barcode> codes = detector.detect(frame);
                 Barcode code = codes.get(codes.keyAt(0));

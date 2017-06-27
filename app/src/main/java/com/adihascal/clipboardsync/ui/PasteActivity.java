@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 
+import com.adihascal.clipboardsync.util.PasteDataHolder;
+
 import net.rdrei.android.dirchooser.DirectoryChooserActivity;
 import net.rdrei.android.dirchooser.DirectoryChooserConfig;
 
@@ -21,7 +23,7 @@ public class PasteActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        this.data = new DataInputStream(new ByteArrayInputStream(getIntent().getByteArrayExtra("data")));
+        this.data = new DataInputStream(new ByteArrayInputStream(PasteDataHolder.getBytes()));
         Intent resultIntent = new Intent(this, DirectoryChooserActivity.class);
         DirectoryChooserConfig config = DirectoryChooserConfig.builder()
                 .newDirectoryName("New Folder")
@@ -40,7 +42,7 @@ public class PasteActivity extends AppCompatActivity
             try
             {
                 String folder = intent.getStringExtra(DirectoryChooserActivity.RESULT_SELECTED_DIR);
-                int nFiles = data.read();
+                int nFiles = data.readInt();
                 byte[] buf;
 
                 for (int i = 0; i < nFiles; i++)

@@ -2,8 +2,11 @@ package com.adihascal.clipboardsync.network;
 
 import android.content.ClipData;
 import android.content.Context;
+import android.os.Looper;
 
 import com.adihascal.clipboardsync.handler.ClipHandlerRegistry;
+import com.adihascal.clipboardsync.handler.IntentHandler;
+import com.adihascal.clipboardsync.service.NetworkThreadCreator;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -21,16 +24,26 @@ public class SyncClient extends SyncThread
     @Override
     public void run()
     {
-        Socket s;
+        NetworkThreadCreator.isBusy = true;
         try
         {
             if (ClipHandlerRegistry.isMimeTypeSupported(this.clip.getDescription().getMimeType(0)))
             {
-                s = new Socket(super.deviceAddress, 63708);
+                Looper.prepare();
+                Socket s = new Socket(super.deviceAddress, 63708);
+                IntentHandler.socket = s;
                 ClipHandlerRegistry.getHandlerFor(this.clip.getDescription().getMimeType(0)).sendClip(s, this.clip);
             }
         }
-        catch (IOException | InstantiationException | IllegalAccessException e)
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+        catch (InstantiationException e)
+        {
+            e.printStackTrace();
+        }
+        catch (IllegalAccessException e)
         {
             e.printStackTrace();
         }

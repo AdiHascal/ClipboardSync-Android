@@ -19,7 +19,7 @@ public interface IClipHandler
     void sendClip(Socket s, ClipData clip) throws IOException;
 
     /**
-     * Receives a clip from the connected computer and puts it on the clipboard (for text)/pasting it per the user's request (for files)
+     * Receives a clip from the connected computer and puts it on the clipboard (for text)/pasting it per the user'socket request (for files)
      *
      * @param s       The socket connected to the computer
      * @param manager The clipboard manager, for convenience
