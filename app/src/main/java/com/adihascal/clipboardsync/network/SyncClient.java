@@ -5,7 +5,6 @@ import android.content.Context;
 import android.os.Looper;
 
 import com.adihascal.clipboardsync.handler.ClipHandlerRegistry;
-import com.adihascal.clipboardsync.handler.IntentHandler;
 import com.adihascal.clipboardsync.service.NetworkThreadCreator;
 
 import java.io.IOException;
@@ -31,19 +30,12 @@ public class SyncClient extends SyncThread
             {
                 Looper.prepare();
                 Socket s = new Socket(super.deviceAddress, 63708);
-                IntentHandler.socket = s;
                 ClipHandlerRegistry.getHandlerFor(this.clip.getDescription().getMimeType(0)).sendClip(s, this.clip);
+                NetworkThreadCreator.isBusy = false;
+                s.close();
             }
         }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-        catch (InstantiationException e)
-        {
-            e.printStackTrace();
-        }
-        catch (IllegalAccessException e)
+        catch (IOException | InstantiationException | IllegalAccessException e)
         {
             e.printStackTrace();
         }

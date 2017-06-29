@@ -1,29 +1,27 @@
 package com.adihascal.clipboardsync.ui;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 
-import com.adihascal.clipboardsync.util.PasteDataHolder;
+import com.adihascal.clipboardsync.util.FilePaster;
 
 import net.rdrei.android.dirchooser.DirectoryChooserActivity;
 import net.rdrei.android.dirchooser.DirectoryChooserConfig;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.FileNotFoundException;
 
 public class PasteActivity extends AppCompatActivity
 {
-    private DataInputStream data;
-
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        this.data = new DataInputStream(new ByteArrayInputStream(PasteDataHolder.getBytes()));
         Intent resultIntent = new Intent(this, DirectoryChooserActivity.class);
         DirectoryChooserConfig config = DirectoryChooserConfig.builder()
                 .newDirectoryName("New Folder")
@@ -31,7 +29,35 @@ public class PasteActivity extends AppCompatActivity
                 .allowReadOnlyDirectory(false)
                 .build();
         resultIntent.putExtra(DirectoryChooserActivity.EXTRA_CONFIG, config);
-        startActivityForResult(resultIntent, 1);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
+        {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 0);
+        }
+        else
+        {
+            startActivityForResult(resultIntent, 1);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
+    {
+        if (requestCode == 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+        {
+            startActivityForResult(getRequestIntent(), 1);
+        }
+    }
+
+    private Intent getRequestIntent()
+    {
+        Intent resultIntent = new Intent(this, DirectoryChooserActivity.class);
+        DirectoryChooserConfig config = DirectoryChooserConfig.builder()
+                .newDirectoryName("New Folder")
+                .allowNewDirectoryNameModification(true)
+                .allowReadOnlyDirectory(false)
+                .build();
+        resultIntent.putExtra(DirectoryChooserActivity.EXTRA_CONFIG, config);
+        return resultIntent;
     }
 
     @Override
@@ -39,28 +65,18 @@ public class PasteActivity extends AppCompatActivity
     {
         if (requestCode == 1 && resultCode == DirectoryChooserActivity.RESULT_CODE_DIR_SELECTED)
         {
+            String folder = intent.getStringExtra(DirectoryChooserActivity.RESULT_SELECTED_DIR);
             try
             {
-                String folder = intent.getStringExtra(DirectoryChooserActivity.RESULT_SELECTED_DIR);
-                int nFiles = data.readInt();
-                byte[] buf;
-
-                for (int i = 0; i < nFiles; i++)
-                {
-                    File f = new File(folder, data.readUTF());
-                    if (f.createNewFile())
-                    {
-                        FileOutputStream out = new FileOutputStream(f);
-                        buf = new byte[(int) data.readLong()];
-                        data.read(buf);
-                        out.write(buf);
-                        out.close();
-                    }
-                }
+                new Thread(new FilePaster(folder)).start();
             }
-            catch (IOException e)
+            catch (FileNotFoundException e)
             {
                 e.printStackTrace();
+            }
+            finally
+            {
+                finish();
             }
         }
     }

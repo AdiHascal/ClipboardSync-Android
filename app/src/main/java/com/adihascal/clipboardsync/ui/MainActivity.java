@@ -1,5 +1,6 @@
 package com.adihascal.clipboardsync.ui;
 
+import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -36,6 +37,33 @@ public class MainActivity extends AppCompatActivity
             setDeviceIPTextView(reference.deviceName);
         }
         setContentView(R.layout.mainactivity);
+        requestPermissions();
+    }
+
+    private void requestPermissions()
+    {
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.MANAGE_DOCUMENTS) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
+        {
+            ActivityCompat.requestPermissions(this, new String[]{
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.MANAGE_DOCUMENTS,
+                    Manifest.permission.CAMERA}, 0);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
+    {
+        for (int i = 0; i < permissions.length; i++)
+        {
+            System.out.println(permissions[i] + " was " + (grantResults[i] == 0 ? "granted" : "denied"));
+
+        }
     }
 
     @Override
@@ -55,34 +83,10 @@ public class MainActivity extends AppCompatActivity
 
     public void tryScanCode(View view)
     {
-        if (ContextCompat.checkSelfPermission(this, "android.permission.CAMERA") != PackageManager.PERMISSION_GRANTED)
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null)
         {
-            ActivityCompat.requestPermissions(this, new String[]{"android.permission.CAMERA"}, 0);
-        }
-        else
-        {
-            Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            if (takePictureIntent.resolveActivity(getPackageManager()) != null)
-            {
-                startActivityForResult(takePictureIntent, 1);
-            }
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
-    {
-        if (grantResults[0] == PackageManager.PERMISSION_GRANTED)
-        {
-            Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            if (takePictureIntent.resolveActivity(getPackageManager()) != null)
-            {
-                startActivityForResult(takePictureIntent, 1);
-            }
-        }
-        else
-        {
-            Toast.makeText(this, "u r a scrub", Toast.LENGTH_SHORT).show();
+            startActivityForResult(takePictureIntent, 1);
         }
     }
 

@@ -14,7 +14,7 @@ public interface IClipHandler
      *
      * @param s    The socket connected to the computer
      * @param clip The clip object containing the data to be sent
-     * @throws IOException
+     * @throws IOException if something explodes
      */
     void sendClip(Socket s, ClipData clip) throws IOException;
 
@@ -23,7 +23,7 @@ public interface IClipHandler
      *
      * @param s       The socket connected to the computer
      * @param manager The clipboard manager, for convenience
-     * @throws IOException
+     * @throws IOException if something explodes
      */
     void receiveClip(DataInputStream s, ClipboardManager manager) throws IOException;
 }

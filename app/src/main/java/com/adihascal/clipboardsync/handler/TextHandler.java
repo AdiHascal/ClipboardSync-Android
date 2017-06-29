@@ -4,7 +4,6 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 
 import com.adihascal.clipboardsync.reference.Reference;
-import com.adihascal.clipboardsync.service.NetworkThreadCreator;
 
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -22,7 +21,6 @@ public class TextHandler implements IClipHandler
         out.writeUTF((String) clip.getItemAt(0).getText());
         out.flush();
         s.close();
-        NetworkThreadCreator.isBusy = false;
     }
 
     @Override
