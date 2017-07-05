@@ -19,6 +19,8 @@ import java.io.IOException;
 
 public class NetworkThreadCreator extends Service implements ClipboardManager.OnPrimaryClipChangedListener
 {
+    public static final String ACTION_CONNECT = "com.adihascal.clipboardsync.action.CONNECT";
+    public static final String ACTION_RECONNECT = "com.adihascal.clipboardsync.action.RECONNECT";
     public volatile static boolean isBusy = false;
     private String address;
 
@@ -36,14 +38,21 @@ public class NetworkThreadCreator extends Service implements ClipboardManager.On
             this.address = intent.getStringExtra("device_address");
             if (this.address != null)
             {
-                new Thread(new Handshake(this.address)).start();
-                SyncServer server = new SyncServer(this.address, AppDummy.getContext());
-                server.start();
-                ((ClipboardManager) AppDummy.getContext().getSystemService(CLIPBOARD_SERVICE)).addPrimaryClipChangedListener(this);
-                startForeground(3, new NotificationCompat.Builder(AppDummy.getContext())
-                        .setSmallIcon(R.mipmap.ic_launcher)
-                        .setContentTitle("ClipboardSync is running")
-                        .build());
+                if (intent.getAction().equals(ACTION_CONNECT))
+                {
+                    new Thread(new Handshake(this.address)).start();
+                    SyncServer server = new SyncServer(this.address, AppDummy.getContext());
+                    server.start();
+                    ((ClipboardManager) AppDummy.getContext().getSystemService(CLIPBOARD_SERVICE)).addPrimaryClipChangedListener(this);
+                    startForeground(3, new NotificationCompat.Builder(AppDummy.getContext())
+                            .setSmallIcon(R.mipmap.ic_launcher)
+                            .setContentTitle("ClipboardSync is running")
+                            .build());
+                }
+                else if (intent.getAction().equals(ACTION_RECONNECT))
+                {
+                    new SyncClient(this.address, AppDummy.getContext(), null).start();
+                }
             }
         }
         return START_STICKY_COMPATIBILITY;

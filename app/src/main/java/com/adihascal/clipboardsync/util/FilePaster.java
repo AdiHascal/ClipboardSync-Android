@@ -20,24 +20,49 @@ public class FilePaster implements Runnable
         this.folder = dir;
     }
 
+    private void receiveFile(DataInputStream in, String parent) throws IOException
+    {
+        File f;
+        String path = folder;
+        String thing = in.readUTF();
+        if (thing.equals("file"))
+        {
+            if (parent != null)
+            {
+                path = parent;
+            }
+            path += "/" + in.readUTF();
+            f = new File(path);
+            f.createNewFile();
+            FileOutputStream out = new FileOutputStream(f);
+            Utilities.copyStream(in, out, (int) in.readLong());
+        }
+        else
+        {
+            if (parent != null)
+            {
+                path = parent;
+            }
+            path += "/" + in.readUTF();
+            f = new File(path);
+            f.mkdir();
+            int nFiles = in.readInt();
+            for (int i = 0; i < nFiles; i++)
+            {
+                receiveFile(in, f.getPath());
+            }
+        }
+    }
+
     @Override
     public void run()
     {
         try
         {
             int nFiles = data.readInt();
-            long len;
-
             for (int i = 0; i < nFiles; i++)
             {
-                File f = new File(folder, data.readUTF());
-                if (f.createNewFile())
-                {
-                    FileOutputStream out = new FileOutputStream(f);
-                    len = data.readLong();
-                    Utilities.copyStream(data, out, (int) len);
-                    out.close();
-                }
+                receiveFile(data, null);
             }
             Reference.cacheFile.delete();
         }

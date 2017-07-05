@@ -7,6 +7,7 @@ import android.os.Looper;
 import com.adihascal.clipboardsync.handler.ClipHandlerRegistry;
 import com.adihascal.clipboardsync.service.NetworkThreadCreator;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
@@ -23,15 +24,23 @@ public class SyncClient extends SyncThread
     @Override
     public void run()
     {
-        NetworkThreadCreator.isBusy = true;
         try
         {
-            if (ClipHandlerRegistry.isMimeTypeSupported(this.clip.getDescription().getMimeType(0)))
+            Socket s = new Socket(super.deviceAddress, 63708);
+            DataOutputStream out = new DataOutputStream(s.getOutputStream());
+            if (clip != null && ClipHandlerRegistry.isMimeTypeSupported(this.clip.getDescription().getMimeType(0)))
             {
+                NetworkThreadCreator.isBusy = true;
                 Looper.prepare();
-                Socket s = new Socket(super.deviceAddress, 63708);
+                out.writeUTF("receive");
                 ClipHandlerRegistry.getHandlerFor(this.clip.getDescription().getMimeType(0)).sendClip(s, this.clip);
                 NetworkThreadCreator.isBusy = false;
+                s.close();
+            }
+            else if (clip == null)
+            {
+                out.writeUTF("reconnect");
+                out.writeUTF(Handshake.getIPAddress());
                 s.close();
             }
         }

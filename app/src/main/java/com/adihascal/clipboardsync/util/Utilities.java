@@ -172,10 +172,11 @@ public class Utilities
 
     public static void copyStreamToFile(InputStream input, File f) throws IOException
     {
-        if (!f.exists())
+        if (f.exists())
         {
-            f.createNewFile();
+            f.delete();
         }
+        f.createNewFile();
         copyStream(input, new FileOutputStream(f));
     }
 
@@ -189,15 +190,15 @@ public class Utilities
         }
     }
 
-    public static void copyStream(InputStream input, OutputStream output, int length) throws IOException
+    public static void copyStream(InputStream input, OutputStream output, long length) throws IOException
     {
         byte[] buffer = new byte[BUFFER_SIZE];
-        int bytesRead;
-        int totalBytesRead = 0;
-        while (totalBytesRead < length && (bytesRead = input.read(buffer, 0, Math.min(length - totalBytesRead, BUFFER_SIZE))) != -1)
+        long bytesRead;
+        long totalBytesRead = 0;
+        while (totalBytesRead < length && (bytesRead = input.read(buffer, 0, (int) Math.min(length - totalBytesRead, BUFFER_SIZE))) != -1)
         {
             totalBytesRead += bytesRead;
-            output.write(buffer, 0, bytesRead);
+            output.write(buffer, 0, (int) bytesRead);
         }
     }
 }

@@ -50,14 +50,35 @@ public class IntentHandler implements IClipHandler
         {
             String path = Utilities.getPath(AppDummy.getContext(), uri);
             File f = new File(path);
+            sendFile(out, f);
+        }
+        System.out.println("flushing...");
+        s.close();
+    }
+
+    private void sendFile(DataOutputStream out, File f) throws IOException
+    {
+        if (!f.isDirectory())
+        {
             FileInputStream in = new FileInputStream(f);
+            out.writeUTF("file");
             out.writeUTF(f.getName());
             out.writeLong(f.length());
             Utilities.copyStream(in, out);
             in.close();
         }
-        System.out.println("flushing...");
-        s.close();
+        else
+        {
+            out.writeUTF("dir");
+            File[] subs = f.listFiles();
+            assert subs != null;
+            out.writeUTF(f.getName());
+            out.writeInt(subs.length);
+            for (File sub : subs)
+            {
+                sendFile(out, sub);
+            }
+        }
     }
 
     @Override
