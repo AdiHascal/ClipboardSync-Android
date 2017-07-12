@@ -30,6 +30,7 @@ public class SyncServer extends SyncThread
             {
                 Socket s = serverSocket.accept();
                 NetworkThreadCreator.isBusy = true;
+                s.setReceiveBufferSize(1048576);
                 DataInputStream socketIn = new DataInputStream(s.getInputStream());
                 String type = socketIn.readUTF();
                 ClipboardManager manager = (ClipboardManager) this.appContext.getSystemService(Context.CLIPBOARD_SERVICE);

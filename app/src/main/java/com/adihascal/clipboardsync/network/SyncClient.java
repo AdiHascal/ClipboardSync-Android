@@ -27,6 +27,7 @@ public class SyncClient extends SyncThread
         try
         {
             Socket s = new Socket(super.deviceAddress, 63708);
+            s.setSendBufferSize(1048576);
             DataOutputStream out = new DataOutputStream(s.getOutputStream());
             if (clip != null && ClipHandlerRegistry.isMimeTypeSupported(this.clip.getDescription().getMimeType(0)))
             {
