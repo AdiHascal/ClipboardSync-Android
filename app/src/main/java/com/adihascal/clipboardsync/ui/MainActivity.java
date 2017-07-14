@@ -31,15 +31,34 @@ import net.rdrei.android.dirchooser.DirectoryChooserActivity;
 import net.rdrei.android.dirchooser.DirectoryChooserConfig;
 
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 import static com.adihascal.clipboardsync.reference.Reference.savedData;
 
 public class MainActivity extends AppCompatActivity
 {
+    public static void writeToSave()
+    {
+        try
+        {
+            if (!Reference.deviceName.equals(Reference.defaultDeviceName))
+            {
+                DataOutputStream fout = new DataOutputStream(new FileOutputStream(savedData));
+                String s = Reference.currentDeviceAddress + "," + Reference.deviceName;
+                fout.writeUTF(s);
+                fout.close();
+            }
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -81,25 +100,18 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private void writeToSave()
-    {
-        try
-        {
-            FileWriter fout = new FileWriter(savedData, false);
-            String s = Reference.currentDeviceAddress + "," + Reference.deviceName;
-            fout.write(s);
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-    }
-
     @Override
     protected void onPause()
     {
         writeToSave();
         super.onPause();
+    }
+
+    @Override
+    protected void onDestroy()
+    {
+        writeToSave();
+        super.onDestroy();
     }
 
     private void requestPermissions()

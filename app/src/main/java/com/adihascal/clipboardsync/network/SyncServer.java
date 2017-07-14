@@ -2,23 +2,20 @@ package com.adihascal.clipboardsync.network;
 
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 
 import com.adihascal.clipboardsync.handler.ClipHandlerRegistry;
 import com.adihascal.clipboardsync.service.NetworkThreadCreator;
+import com.adihascal.clipboardsync.ui.AppDummy;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class SyncServer extends SyncThread
+public class SyncServer extends Thread
 {
-    public volatile static ServerSocket serverSocket;
-
-    public SyncServer(String address, Context ctx)
-    {
-        super(address, ctx);
-    }
+    private ServerSocket serverSocket;
 
     @Override
     public void run()
@@ -31,10 +28,17 @@ public class SyncServer extends SyncThread
                 Socket s = serverSocket.accept();
                 NetworkThreadCreator.isBusy = true;
                 DataInputStream socketIn = new DataInputStream(s.getInputStream());
-                String type = socketIn.readUTF();
-                ClipboardManager manager = (ClipboardManager) this.appContext.getSystemService(Context.CLIPBOARD_SERVICE);
-                ClipHandlerRegistry.getHandlerFor(type).receiveClip(socketIn, manager);
-                NetworkThreadCreator.isBusy = false;
+                String command = socketIn.readUTF();
+                switch (command)
+                {
+                    case "receive":
+                        ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                        ClipHandlerRegistry.getHandlerFor(socketIn.readUTF()).receiveClip(socketIn, manager);
+                        NetworkThreadCreator.isBusy = false;
+                        break;
+                    case "disconnect":
+                        AppDummy.getContext().stopService(new Intent(AppDummy.getContext(), NetworkThreadCreator.class));
+                }
                 s.close();
             }
         }
@@ -42,5 +46,19 @@ public class SyncServer extends SyncThread
         {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void interrupt()
+    {
+        try
+        {
+            serverSocket.close();
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+        super.interrupt();
     }
 }
