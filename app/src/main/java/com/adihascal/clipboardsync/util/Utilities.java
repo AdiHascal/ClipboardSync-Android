@@ -188,6 +188,7 @@ public class Utilities
         {
             output.write(buffer, 0, bytesRead);
         }
+        output.close();
     }
 
     public static void copyStream(InputStream input, OutputStream output, long length) throws IOException
@@ -200,5 +201,6 @@ public class Utilities
             totalBytesRead += bytesRead;
             output.write(buffer, 0, (int) bytesRead);
         }
+        output.close();
     }
 }
