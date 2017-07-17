@@ -6,7 +6,7 @@ import java.util.HashMap;
 
 public class ClipHandlerRegistry
 {
-    private static final HashMap<String, IClipHandler> handlers = new HashMap<String, IClipHandler>();
+    private static final HashMap<String, IClipHandler> handlers = new HashMap<>();
 
     static
     {
