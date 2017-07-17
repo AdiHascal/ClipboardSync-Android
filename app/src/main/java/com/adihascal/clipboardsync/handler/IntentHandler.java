@@ -64,7 +64,7 @@ public class IntentHandler implements IClipHandler
             out.writeUTF("file");
             out.writeUTF(f.getName());
             out.writeLong(f.length());
-            Utilities.copyStream(in, out);
+            Utilities.copyNoClose(in, out);
             in.close();
         }
         else
@@ -87,7 +87,7 @@ public class IntentHandler implements IClipHandler
         Intent pasteIntent = new Intent();
         pasteIntent.setClass(AppDummy.getContext(), PasteActivity.class);
         pasteIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        Utilities.copyStreamToFile(s, Reference.cacheFile);
+        Utilities.copyStreamToFileWithProgressBar(s, Reference.cacheFile);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext());
         builder.setSmallIcon(R.mipmap.ic_launcher_round)
                 .setContentTitle("Ready to paste")
