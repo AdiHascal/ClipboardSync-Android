@@ -11,13 +11,6 @@ class SocketHolder
     private static DataInputStream socketIn;
     private static DataOutputStream socketOut;
 
-    static void setSocket(Socket socket) throws IOException
-    {
-        SocketHolder.socket = socket;
-        socketIn = new DataInputStream(socket.getInputStream());
-        socketOut = new DataOutputStream(socket.getOutputStream());
-    }
-
     static DataInputStream getInputStream() throws IOException
     {
         return socketIn;
@@ -26,6 +19,18 @@ class SocketHolder
     static DataOutputStream getOutputStream() throws IOException
     {
         return socketOut;
+    }
+
+    static Socket getSocket()
+    {
+        return socket;
+    }
+
+    static void setSocket(Socket socket) throws IOException
+    {
+        SocketHolder.socket = socket;
+        socketIn = new DataInputStream(socket.getInputStream());
+        socketOut = new DataOutputStream(socket.getOutputStream());
     }
 
     static void terminate() throws IOException
