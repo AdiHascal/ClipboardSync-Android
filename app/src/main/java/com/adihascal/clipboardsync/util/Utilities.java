@@ -200,8 +200,10 @@ public class Utilities
             NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext())
                     .setContentTitle("copying stream to file")
                     .setSmallIcon(R.drawable.ic_action_create);
-            while ((bytesRead = input.read(buffer)) != -1)
+
+            while(totalBytesRead < size)
             {
+                bytesRead = input.read(buffer, 0, (int) Math.min(BUFFER_SIZE, size - totalBytesRead));
                 output.write(buffer, 0, bytesRead);
                 totalBytesRead += bytesRead;
                 if (packets % 75 == 0)

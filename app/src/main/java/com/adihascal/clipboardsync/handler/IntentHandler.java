@@ -5,8 +5,11 @@ import android.app.PendingIntent;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
+import android.provider.OpenableColumns;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.util.Pair;
 
 import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.reference.Reference;
@@ -48,12 +51,39 @@ public class IntentHandler implements IClipHandler
 
         for (Uri uri : uris)
         {
-            String path = Utilities.getPath(AppDummy.getContext(), uri);
-            File f = new File(path);
-            sendFile(out, f);
+            try
+            {
+                String path = Utilities.getPath(AppDummy.getContext(), uri);
+                File f = new File(path);
+                sendFile(out, f);
+            }
+            catch(Exception e)
+            {
+                doThe(uri, getFileNameAndSize(uri), out);
+            }
         }
         System.out.println("flushing...");
-        s.close();
+    }
+
+    private Pair<String, Long> getFileNameAndSize(Uri u)
+    {
+        Cursor cursor = AppDummy.getContext().getContentResolver().query(u, null, null, null, null);
+        int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+        int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
+        cursor.moveToFirst();
+        Pair<String, Long> ret = Pair.create(cursor.getString(nameIndex), cursor.getLong(sizeIndex));
+        cursor.close();
+        return ret;
+    }
+
+    private void doThe(Uri thingy, Pair<String, Long> stuff, DataOutputStream out) throws IOException
+    {
+        FileInputStream fileIn = AppDummy.getContext().getContentResolver().openAssetFileDescriptor(thingy, "r").createInputStream();
+        out.writeUTF("file");
+        out.writeUTF(stuff.first);
+        out.writeLong(stuff.second);
+        Utilities.copyNoClose(fileIn, out);
+        fileIn.close();
     }
 
     private void sendFile(DataOutputStream out, File f) throws IOException
@@ -89,7 +119,7 @@ public class IntentHandler implements IClipHandler
         pasteIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         Utilities.copyStreamToFileWithProgressBar(s, Reference.cacheFile);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext());
-        builder.setSmallIcon(R.mipmap.ic_launcher_round)
+        builder.setSmallIcon(R.drawable.ic_content_paste_black_24dp)
                 .setContentTitle("Ready to paste")
                 .setContentText("A clip containing file data was received by ClipboardSync and is available for pasting. tap to choose destination")
                 .setContentIntent(PendingIntent.getActivity(AppDummy.getContext(), 1, pasteIntent, PendingIntent.FLAG_UPDATE_CURRENT))

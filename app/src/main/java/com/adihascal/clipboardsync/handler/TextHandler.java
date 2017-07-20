@@ -20,7 +20,6 @@ public class TextHandler implements IClipHandler
         out.writeUTF("text/plain");
         out.writeUTF((String) clip.getItemAt(0).getText());
         out.flush();
-        s.close();
     }
 
     @Override

@@ -39,7 +39,7 @@
             android:enabled="true"
             android:exported="false">
         </service>
-
+        <service android:name=".network.SyncServer$WtfAndroid"/>
         <activity
             android:name=".ui.IntentHandlerActivity"
             android:theme="@android:style/Theme.NoDisplay">

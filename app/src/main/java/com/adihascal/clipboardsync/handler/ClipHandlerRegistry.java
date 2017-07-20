@@ -16,7 +16,7 @@ public class ClipHandlerRegistry
         handlers.put("application/x-java-serialized-object", new IntentHandler());
     }
 
-    public static IClipHandler getHandlerFor(String type) throws IllegalAccessException, InstantiationException
+    public static IClipHandler getHandlerFor(String type)
     {
         return handlers.get(type);
     }

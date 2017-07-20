@@ -37,20 +37,15 @@ public class NetworkThreadCreator extends Service implements ClipboardManager.On
             this.address = intent.getStringExtra("device_address");
             if (this.address != null)
             {
-                if (intent.getAction().equals(ACTION_CONNECT))
-                {
-                    startForeground(3, new NotificationCompat.Builder(AppDummy.getContext())
-                            .setSmallIcon(R.mipmap.ic_launcher)
-                            .setContentTitle("ClipboardSync is running")
-                            .build());
-                }
+                startForeground(3, new NotificationCompat.Builder(AppDummy.getContext())
+                        .setSmallIcon(R.mipmap.ic_launcher)
+                        .setContentTitle("ClipboardSync is running")
+                        .build());
                 SyncClient.address = this.address;
+                SyncClient.init = false;
                 ((ClipboardManager) AppDummy.getContext().getSystemService(CLIPBOARD_SERVICE)).addPrimaryClipChangedListener(this);
+                SyncClient.service = this;
                 new SyncClient("connect", null).start();
-                if (this.server.getState().equals(Thread.State.NEW))
-                {
-                    this.server.start();
-                }
             }
         }
         return START_STICKY_COMPATIBILITY;
@@ -78,6 +73,11 @@ public class NetworkThreadCreator extends Service implements ClipboardManager.On
                 new SyncClient("send", clip).start();
             }
         }
+    }
+
+    public SyncServer getServer()
+    {
+        return server;
     }
 
     @Override
