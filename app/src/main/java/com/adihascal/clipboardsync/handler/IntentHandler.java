@@ -85,7 +85,6 @@ public class IntentHandler implements IClipHandler
 
     /**
      * "Do the thingy with the stuff"
-     * <p>
      * I'm looking at you, apps with a locked content provider
      *
      * @param thingy the thingy we're doing
