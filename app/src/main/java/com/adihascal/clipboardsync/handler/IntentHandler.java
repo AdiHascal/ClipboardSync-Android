@@ -70,7 +70,6 @@ public class IntentHandler implements IClipHandler
                 doThe(uri, getFileNameAndSize(uri), out);
             }
         }
-        System.out.println("flushing...");
     }
 
     private Pair<String, Long> getFileNameAndSize(Uri u)
