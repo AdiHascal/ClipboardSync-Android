@@ -36,7 +36,7 @@ public class IntentHandler implements IClipHandler
         Intent intent = clip.getItemAt(0).getIntent();
 
         //I'm looking at you, Discord 9gag and Twitter
-        if(ClipHandlerRegistry.getHandlerFor(intent.getType()).getClass() == TextHandler.class)
+        if(intent.getType().equals("text/plain"))
         {
             new TextHandler().sendClip(s, clip);
             return;
