@@ -34,6 +34,14 @@ public class IntentHandler implements IClipHandler
     public void sendClip(Socket s, ClipData clip) throws IOException
     {
         Intent intent = clip.getItemAt(0).getIntent();
+
+        //I'm looking at you, Discord 9gag and Twitter
+        if(ClipHandlerRegistry.getHandlerFor(intent.getType()).getClass() == TextHandler.class)
+        {
+            new TextHandler().sendClip(s, clip);
+            return;
+        }
+
         DataOutputStream out = new DataOutputStream(s.getOutputStream());
         List<Uri> uris;
 
@@ -76,6 +84,16 @@ public class IntentHandler implements IClipHandler
         return ret;
     }
 
+    /**
+     * "Do the thingy with the stuff"
+     * <p>
+     * I'm looking at you, apps with a locked content provider
+     *
+     * @param thingy the thingy we're doing
+     * @param stuff  the stuff with which we are doing the thingy
+     * @param out    a streamy boi
+     * @throws IOException o shit waddup
+     */
     private void doThe(Uri thingy, Pair<String, Long> stuff, DataOutputStream out) throws IOException
     {
         FileInputStream fileIn = AppDummy.getContext().getContentResolver().openAssetFileDescriptor(thingy, "r").createInputStream();
