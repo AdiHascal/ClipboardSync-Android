@@ -17,7 +17,14 @@ public class TextHandler implements IClipHandler
     {
         DataOutputStream out = new DataOutputStream(s.getOutputStream());
         out.writeUTF("text/plain");
-        out.writeUTF((String) clip.getItemAt(0).getIntent().getClipData().getItemAt(0).getText());
+        if(clip.getItemAt(0).getIntent() != null)
+        {
+            out.writeUTF((String) clip.getItemAt(0).getIntent().getClipData().getItemAt(0).getText());
+        }
+        else
+        {
+            out.writeUTF((String) clip.getItemAt(0).getText());
+        }
     }
 
     @Override

@@ -67,11 +67,11 @@ public class MainActivity extends AppCompatActivity
         {
             Reference.deviceName = savedInstanceState.getString("device_name", "N/A");
             Reference.currentDeviceAddress = savedInstanceState.getString("device_address", "");
-            setDeviceIPTextView(Reference.deviceName);
         }
         savedData = new File(this.getFilesDir().getPath(), "data.txt");
         readFromSave();
         setContentView(R.layout.mainactivity);
+        setDeviceIPTextView(Reference.deviceName);
         setSupportActionBar((Toolbar) findViewById(R.id.actionbar));
         requestPermissions();
     }

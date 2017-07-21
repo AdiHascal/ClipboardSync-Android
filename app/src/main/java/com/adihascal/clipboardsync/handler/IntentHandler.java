@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static android.content.Context.NOTIFICATION_SERVICE;
+import static android.support.v4.app.NotificationCompat.PRIORITY_MIN;
 
 public class IntentHandler implements IClipHandler
 {
@@ -140,7 +141,8 @@ public class IntentHandler implements IClipHandler
                 .setContentText("A clip containing file data was received by ClipboardSync and is available for pasting. tap to choose destination")
                 .setContentIntent(PendingIntent.getActivity(AppDummy.getContext(), 1, pasteIntent, PendingIntent.FLAG_UPDATE_CURRENT))
                 .setLocalOnly(true)
-                .setAutoCancel(true);
+                .setAutoCancel(true)
+                .setPriority(PRIORITY_MIN);
         ((NotificationManager) AppDummy.getContext().getSystemService(NOTIFICATION_SERVICE)).notify(1, builder.build());
     }
 }

@@ -31,7 +31,7 @@ public class SyncClient extends Thread
         this.command = comm;
     }
 
-    private static String getIPAddress()
+    private String getIPAddress()
     {
         int ipAddress = ((WifiManager) AppDummy.getContext().getApplicationContext().getSystemService(WIFI_SERVICE)).getConnectionInfo().getIpAddress();
         return String.format(Locale.ENGLISH, "%d.%d.%d.%d", (ipAddress & 0xff), (ipAddress >> 8 & 0xff), (ipAddress >> 16 & 0xff), (ipAddress >> 24 & 0xff));
@@ -67,6 +67,12 @@ public class SyncClient extends Thread
                     getOutputStream().writeUTF(this.command);
                     System.out.println("disconnected from " + address);
                     address = null;
+                    break;
+                case "pause":
+                    getOutputStream().writeUTF("pause");
+                    break;
+                case "resume":
+                    getOutputStream().writeUTF("resume");
                     break;
             }
         }
