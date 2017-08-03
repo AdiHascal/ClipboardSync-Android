@@ -13,8 +13,7 @@ import java.net.Socket;
 import java.util.Locale;
 
 import static android.content.Context.WIFI_SERVICE;
-import static com.adihascal.clipboardsync.network.SocketHolder.getOutputStream;
-import static com.adihascal.clipboardsync.network.SocketHolder.getSocket;
+import static com.adihascal.clipboardsync.network.SocketHolder.out;
 import static com.adihascal.clipboardsync.network.SocketHolder.setSocket;
 
 public class SyncClient extends Thread
@@ -42,49 +41,55 @@ public class SyncClient extends Thread
     {
         try
         {
+			Looper.prepare();
+
             if(!init)
             {
                 init();
             }
-
-            switch (command)
-            {
-                case "send":
-                    if (ClipHandlerRegistry.isMimeTypeSupported(this.clip.getDescription().getMimeType(0)))
-                    {
-                        NetworkThreadCreator.isBusy = true;
-                        getOutputStream().writeUTF("receive");
-                        ClipHandlerRegistry.getHandlerFor(this.clip.getDescription().getMimeType(0)).sendClip(getSocket(), this.clip);
-                        NetworkThreadCreator.isBusy = false;
-                    }
+	
+			while(!NetworkThreadCreator.isConnected)
+			{
+				wait(1000);
+			}
+	
+			switch(command)
+			{
+				case "send":
+					if(ClipHandlerRegistry.isMimeTypeSupported(this.clip.getDescription().getMimeType(0)))
+					{
+						NetworkThreadCreator.isBusy = true;
+						out().writeUTF("receive");
+						ClipHandlerRegistry.getHandlerFor(this.clip.getDescription().getMimeType(0)).sendClip(this.clip);
+						NetworkThreadCreator.isBusy = false;
+					}
                     break;
                 case "connect":
-                    getOutputStream().writeUTF("connect");
-                    getOutputStream().writeUTF(getIPAddress());
+					out().writeUTF("connect");
+					out().writeUTF(getIPAddress());
 
                     break;
                 case "disconnect":
-                    getOutputStream().writeUTF(this.command);
-                    System.out.println("disconnected from " + address);
-                    address = null;
+					out().writeUTF(this.command);
+					System.out.println("disconnected from " + address);
+					address = null;
                     break;
                 case "pause":
-                    getOutputStream().writeUTF("pause");
-                    break;
-                case "resume":
-                    getOutputStream().writeUTF("resume");
-                    break;
-            }
+					out().writeUTF("pause");
+					break;
+				case "resume":
+					out().writeUTF("resume");
+					break;
+			}
         }
-        catch(IOException e)
-        {
-            e.printStackTrace();
+		catch(IOException | InterruptedException e)
+		{
+			e.printStackTrace();
         }
     }
 
     private void init() throws IOException
     {
-        Looper.prepare();
         setSocket(new Socket(address, 63708));
         service.getServer().start();
         init = true;

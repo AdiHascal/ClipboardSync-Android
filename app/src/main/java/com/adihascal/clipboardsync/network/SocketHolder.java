@@ -5,40 +5,58 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
-class SocketHolder
+public class SocketHolder
 {
-    private static Socket socket;
-    private static DataInputStream socketIn;
-    private static DataOutputStream socketOut;
-
-    static DataInputStream getInputStream() throws IOException
-    {
-        return socketIn;
+	private volatile static Socket socket;
+	private volatile static DataInputStream socketIn;
+	private volatile static DataOutputStream socketOut;
+	
+	public static DataInputStream in()
+	{
+		return socketIn;
     }
-
-    static DataOutputStream getOutputStream() throws IOException
-    {
-        return socketOut;
+	
+	public static DataOutputStream out()
+	{
+		return socketOut;
     }
-
-    static Socket getSocket()
-    {
-        return socket;
+	
+	public static Socket getSocket()
+	{
+		return socket;
     }
-
-    static void setSocket(Socket socket) throws IOException
-    {
-        SocketHolder.socket = socket;
-        socketIn = new DataInputStream(socket.getInputStream());
-        socketOut = new DataOutputStream(socket.getOutputStream());
-    }
-
-    static void terminate() throws IOException
-    {
-        if(socket != null)
-        {
-            SyncClient.init = false;
-            socket.close();
-        }
-    }
+	
+	public static void setSocket(Socket socket)
+	{
+		try
+		{
+			if(getSocket() != null && !getSocket().isClosed())
+			{
+				getSocket().close();
+			}
+			SocketHolder.socket = socket;
+			socketIn = new DataInputStream(socket.getInputStream());
+			socketOut = new DataOutputStream(socket.getOutputStream());
+		}
+		catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
+	
+	static void terminate()
+	{
+		try
+		{
+			if(socket != null)
+			{
+				SyncClient.init = false;
+				socket.close();
+			}
+		}
+		catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
 }

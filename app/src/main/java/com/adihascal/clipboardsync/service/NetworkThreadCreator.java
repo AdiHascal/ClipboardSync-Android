@@ -5,12 +5,15 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ClipboardManager;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.ConnectivityManager;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.widget.Toast;
 
 import com.adihascal.clipboardsync.R;
+import com.adihascal.clipboardsync.network.NetworkChangeReceiver;
 import com.adihascal.clipboardsync.network.SyncClient;
 import com.adihascal.clipboardsync.network.SyncServer;
 import com.adihascal.clipboardsync.ui.AppDummy;
@@ -26,9 +29,8 @@ public class NetworkThreadCreator extends Service
     private static final PendingIntent openMainIntent = PendingIntent.getActivity(AppDummy.getContext(), 1, new Intent().setClass(AppDummy.getContext(), MainActivity.class), 0);
     private static final PendingIntent pauseIntent = PendingIntent.getService(AppDummy.getContext(), 2, new Intent().setAction("pause").setClass(AppDummy.getContext(), WtfAndroid2.class), 0);
     private static final PendingIntent resumeIntent = PendingIntent.getService(AppDummy.getContext(), 2, new Intent().setAction("resume").setClass(AppDummy.getContext(), WtfAndroid2.class), 0);
-    public volatile static boolean isBusy = false;
-    public static boolean paused;
-    private SyncServer server = new SyncServer();
+	public volatile static boolean paused = false, isConnected, isBusy = false;
+	private SyncServer server = new SyncServer();
 
     @Override
     public IBinder onBind(Intent intent)
@@ -39,9 +41,15 @@ public class NetworkThreadCreator extends Service
     @Override
     public int onStartCommand(Intent intent, int flags, int startId)
     {
-        if (intent != null)
-        {
-            if(intent.getAction().equals("refreshNotification"))
+		if(!NetworkChangeReceiver.INSTANCE.init)
+		{
+			AppDummy.getContext().registerReceiver(NetworkChangeReceiver.INSTANCE, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+			NetworkChangeReceiver.INSTANCE.init = true;
+		}
+	
+		if(intent != null && isConnected)
+		{
+			if(intent.getAction().equals("refreshNotification"))
             {
                 NotificationCompat.Builder notification = new NotificationCompat.Builder(AppDummy.getContext())
                         .setSmallIcon(R.mipmap.ic_launcher)

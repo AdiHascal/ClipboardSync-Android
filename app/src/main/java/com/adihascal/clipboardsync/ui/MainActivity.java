@@ -45,17 +45,17 @@ public class MainActivity extends AppCompatActivity
     {
         try
         {
-            if (!Reference.deviceName.equals(Reference.defaultDeviceName))
-            {
-                DataOutputStream fout = new DataOutputStream(new FileOutputStream(savedData));
+			if(!Reference.deviceName.equals(Reference.defaultDeviceName))
+			{
+				DataOutputStream fout = new DataOutputStream(new FileOutputStream(savedData));
                 String s = Reference.currentDeviceAddress + "," + Reference.deviceName;
                 fout.writeUTF(s);
                 fout.close();
             }
         }
-        catch (IOException e)
-        {
-            e.printStackTrace();
+		catch(IOException e)
+		{
+			e.printStackTrace();
         }
     }
 
@@ -63,9 +63,9 @@ public class MainActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        if (savedInstanceState != null)
-        {
-            Reference.deviceName = savedInstanceState.getString("device_name", "N/A");
+		if(savedInstanceState != null)
+		{
+			Reference.deviceName = savedInstanceState.getString("device_name", "N/A");
             Reference.currentDeviceAddress = savedInstanceState.getString("device_address", "");
         }
         savedData = new File(this.getFilesDir().getPath(), "data.txt");
@@ -80,13 +80,13 @@ public class MainActivity extends AppCompatActivity
     {
         try
         {
-            if (!savedData.exists())
-            {
-                savedData.createNewFile();
+			if(!savedData.exists())
+			{
+				savedData.createNewFile();
             }
-            if (savedData.length() > 0)
-            {
-                FileInputStream fileIn = new FileInputStream(savedData);
+			if(savedData.length() > 0)
+			{
+				FileInputStream fileIn = new FileInputStream(savedData);
                 DataInputStream in = new DataInputStream(fileIn);
                 String[] s = in.readUTF().split(",");
                 Reference.currentDeviceAddress = s[0];
@@ -94,9 +94,9 @@ public class MainActivity extends AppCompatActivity
                 in.close();
             }
         }
-        catch (IOException e)
-        {
-            e.printStackTrace();
+		catch(IOException e)
+		{
+			e.printStackTrace();
         }
     }
 
@@ -116,10 +116,10 @@ public class MainActivity extends AppCompatActivity
 
     private void requestPermissions()
     {
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(this, Manifest.permission.MANAGE_DOCUMENTS) != PackageManager.PERMISSION_GRANTED ||
+	
+		if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+				ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+				ContextCompat.checkSelfPermission(this, Manifest.permission.MANAGE_DOCUMENTS) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
         {
             ActivityCompat.requestPermissions(this, new String[]{
@@ -148,9 +148,9 @@ public class MainActivity extends AppCompatActivity
     public void tryScanCode(View view)
     {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (takePictureIntent.resolveActivity(getPackageManager()) != null)
-        {
-            startActivityForResult(takePictureIntent, 1);
+		if(takePictureIntent.resolveActivity(getPackageManager()) != null)
+		{
+			startActivityForResult(takePictureIntent, 1);
         }
     }
 
@@ -188,9 +188,9 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data)
     {
-        if (requestCode == 1 && resultCode == RESULT_OK)
-        {
-            try
+		if(requestCode == 1 && resultCode == RESULT_OK)
+		{
+			try
             {
                 Bitmap bmap = ((Bitmap) data.getExtras().get("data")).copy(Bitmap.Config.ARGB_8888, true);
                 Frame frame = new Frame.Builder().setBitmap(bmap).build();
@@ -202,15 +202,15 @@ public class MainActivity extends AppCompatActivity
                 Reference.currentDeviceAddress = info[1];
                 tryConnect(Reference.currentDeviceAddress);
             }
-            catch (Exception e)
-            {
-                e.printStackTrace();
+			catch(Exception e)
+			{
+				e.printStackTrace();
                 Toast.makeText(this, "u r a scrub", Toast.LENGTH_SHORT).show();
             }
         }
-        else if (requestCode == 2 && resultCode == DirectoryChooserActivity.RESULT_CODE_DIR_SELECTED)
-        {
-            String folder = data.getStringExtra(DirectoryChooserActivity.RESULT_SELECTED_DIR);
+		else if(requestCode == 2 && resultCode == DirectoryChooserActivity.RESULT_CODE_DIR_SELECTED)
+		{
+			String folder = data.getStringExtra(DirectoryChooserActivity.RESULT_SELECTED_DIR);
             Uri uri = new Uri.Builder().path(folder).scheme("file").build();
             Intent sendIntent = new Intent(Intent.ACTION_SEND);
             sendIntent.putExtra(Intent.EXTRA_STREAM, uri);

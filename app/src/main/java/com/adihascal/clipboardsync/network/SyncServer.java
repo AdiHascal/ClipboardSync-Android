@@ -18,8 +18,8 @@ import com.adihascal.clipboardsync.ui.AppDummy;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import static com.adihascal.clipboardsync.network.SocketHolder.getInputStream;
-import static com.adihascal.clipboardsync.network.SocketHolder.getOutputStream;
+import static com.adihascal.clipboardsync.network.SocketHolder.in;
+import static com.adihascal.clipboardsync.network.SocketHolder.out;
 import static com.adihascal.clipboardsync.network.SocketHolder.terminate;
 
 public class SyncServer extends Thread
@@ -33,17 +33,23 @@ public class SyncServer extends Thread
         try
         {
             Looper.prepare();
-            while (true)
-            {
-                String command = getInputStream().readUTF();
-                switch (command)
-                {
-                    case "receive":
-                        NetworkThreadCreator.isBusy = true;
+			while(true)
+			{
+				if(!NetworkThreadCreator.isConnected)
+				{
+					wait(1000);
+					continue;
+				}
+		
+				String command = in().readUTF();
+				switch(command)
+				{
+					case "receive":
+						NetworkThreadCreator.isBusy = true;
                         ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-                        ClipHandlerRegistry.getHandlerFor(getInputStream().readUTF()).receiveClip(getInputStream(), manager);
-                        NetworkThreadCreator.isBusy = false;
-                        break;
+						ClipHandlerRegistry.getHandlerFor(in().readUTF()).receiveClip(manager);
+						NetworkThreadCreator.isBusy = false;
+						break;
                     case "disconnect":
                         AppDummy.getContext().stopService(new Intent(AppDummy.getContext(), NetworkThreadCreator.class));
                         break;
@@ -60,33 +66,27 @@ public class SyncServer extends Thread
                                                 refuseIntent
                                         )
                                 .setAutoCancel(true);
-                        ((NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE)).notify(14, builder.build());
-                        break;
-                }
+						((NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE)).notify(4, builder.build());
+						break;
+				}
             }
         }
-        catch(Exception e)
-        {
-            e.printStackTrace();
+		catch(IOException | InterruptedException e)
+		{
+			e.printStackTrace();
         }
     }
 
     @Override
     public void interrupt()
     {
-        try
-        {
-            terminate();
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-        super.interrupt();
-    }
-
-    public static class WtfAndroid extends IntentService
-    {
+		terminate();
+		super.interrupt();
+	}
+	
+	@SuppressWarnings("unused")
+	public static class WtfAndroid extends IntentService
+	{
         public WtfAndroid(String name)
         {
             super(name);
@@ -102,9 +102,9 @@ public class SyncServer extends Thread
         {
             try
             {
-                new DataOutputStream(getOutputStream()).writeUTF(intent.getAction());
-            }
-            catch(IOException e)
+				new DataOutputStream(out()).writeUTF(intent.getAction());
+			}
+			catch(IOException e)
             {
                 e.printStackTrace();
             }

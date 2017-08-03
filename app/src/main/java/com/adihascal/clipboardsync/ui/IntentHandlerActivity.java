@@ -14,9 +14,9 @@ public class IntentHandlerActivity extends AppCompatActivity
     {
         super.onCreate(savedInstanceState);
         Intent intent = getIntent();
-        if (intent != null)
-        {
-            ((ClipboardManager) getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newIntent("", intent));
+		if(intent != null)
+		{
+			((ClipboardManager) getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newIntent("", intent));
         }
         finish();
     }

@@ -35,16 +35,16 @@ public class PasteActivity extends AppCompatActivity
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent)
     {
-        if (requestCode == 1 && resultCode == DirectoryChooserActivity.RESULT_CODE_DIR_SELECTED)
-        {
-            String folder = intent.getStringExtra(DirectoryChooserActivity.RESULT_SELECTED_DIR);
+		if(requestCode == 1 && resultCode == DirectoryChooserActivity.RESULT_CODE_DIR_SELECTED)
+		{
+			String folder = intent.getStringExtra(DirectoryChooserActivity.RESULT_SELECTED_DIR);
             try
             {
-                new Thread(new FilePaster(folder)).start();
-            }
-            catch (FileNotFoundException e)
-            {
-                e.printStackTrace();
+				new FilePaster(folder).exec();
+			}
+			catch(FileNotFoundException e)
+			{
+				e.printStackTrace();
             }
             finally
             {
