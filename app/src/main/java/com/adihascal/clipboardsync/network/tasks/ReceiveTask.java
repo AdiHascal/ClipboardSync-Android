@@ -30,6 +30,7 @@ public class ReceiveTask implements IReconnectListener
 	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext())
 			.setContentTitle("copying stream to file")
 			.setSmallIcon(R.drawable.ic_file_download_black_24dp);
+	private final NotificationUpdater updater = new NotificationUpdater();
 	private long totalBytesRead = 0L;
 	private long size = 0L;
 	private String sizeAsText;
@@ -45,15 +46,13 @@ public class ReceiveTask implements IReconnectListener
 		}
 		int exp = (int) (Math.log(bytes) / Math.log(unit));
 		String pre = String.valueOf("kMGTPE".charAt(exp - 1));
-		return String.format(Locale.ENGLISH, "%.2f %sB", bytes / Math.pow(unit, exp), pre);
+		return String.format(Locale.ENGLISH, "%.3f %sB", bytes / Math.pow(unit, exp), pre);
 	}
 	
-	private void copyStreamWithProgressBar(OutputStream output, boolean resumed, long alreadyRead, long packetsRead)
+	private void copyStreamWithProgressBar(OutputStream output, boolean resumed, long alreadyRead)
 	{
-		long packets = 0L;
 		if(resumed)
 		{
-			packets = packetsRead;
 			totalBytesRead = alreadyRead;
 		}
 		else
@@ -69,21 +68,17 @@ public class ReceiveTask implements IReconnectListener
 			}
 		}
 		
-		byte[] buffer = new byte[51200];
+		byte[] buffer = new byte[15360];
 		int bytesRead;
 		
 		try
 		{
+			updater.exec();
 			while(totalBytesRead < size)
 			{
 				bytesRead = in().read(buffer, 0, (int) Math.min(buffer.length, size - totalBytesRead));
 				output.write(buffer, 0, bytesRead);
 				totalBytesRead += bytesRead;
-				packets++;
-				if(packets % 75 == 0)
-				{
-					new NotificationUpdater().exec();
-				}
 			}
 			
 			if(totalBytesRead == size && !finished)
@@ -105,7 +100,7 @@ public class ReceiveTask implements IReconnectListener
 				
 				if(NetworkThreadCreator.isConnected)
 				{
-					copyStreamWithProgressBar(new FileOutputStream(Reference.cacheFile), true, totalBytesRead, packetsRead);
+					copyStreamWithProgressBar(new FileOutputStream(Reference.cacheFile), true, totalBytesRead);
 				}
 				else
 				{
@@ -123,6 +118,7 @@ public class ReceiveTask implements IReconnectListener
 	
 	private void finish()
 	{
+		updater.stop();
 		NetworkChangeReceiver.INSTANCE.removeListener(this);
 		manager.cancel(10);
 		
@@ -147,7 +143,7 @@ public class ReceiveTask implements IReconnectListener
 		try
 		{
 			NetworkChangeReceiver.INSTANCE.addListener(this);
-			copyStreamWithProgressBar(new FileOutputStream(Reference.cacheFile), false, 0, 0);
+			copyStreamWithProgressBar(new FileOutputStream(Reference.cacheFile), false, 0);
 		}
 		catch(FileNotFoundException e)
 		{
@@ -172,17 +168,35 @@ public class ReceiveTask implements IReconnectListener
 	
 	private class NotificationUpdater implements Runnable
 	{
+		private volatile boolean run = true;
+		
 		@Override
-		public void run()
+		public synchronized void run()
 		{
-			builder.setProgress(100, (int) (100 * totalBytesRead / size), false)
-					.setContentText(humanReadableByteCount(totalBytesRead) + "/" + sizeAsText);
-			manager.notify(10, builder.build());
+			while(run)
+			{
+				try
+				{
+					builder.setProgress(100, (int) (100 * totalBytesRead / size), false)
+							.setContentText(humanReadableByteCount(totalBytesRead) + "/" + sizeAsText);
+					manager.notify(10, builder.build());
+					Thread.sleep(250);
+				}
+				catch(InterruptedException e)
+				{
+					e.printStackTrace();
+				}
+			}
 		}
 		
 		private void exec()
 		{
 			new Thread(this).start();
+		}
+		
+		private void stop()
+		{
+			this.run = false;
 		}
 	}
 }

@@ -48,8 +48,8 @@ public class FilePaster implements Runnable
 			}
 			out.close();
 		}
-		else
-        {
+		else if(thing.equals("dir"))
+		{
 			if(parent != null)
 			{
 				path = parent;

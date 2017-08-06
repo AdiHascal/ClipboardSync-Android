@@ -21,6 +21,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.adihascal.clipboardsync.R;
+import com.adihascal.clipboardsync.network.SocketHolder;
 import com.adihascal.clipboardsync.reference.Reference;
 import com.adihascal.clipboardsync.service.NetworkThreadCreator;
 import com.google.android.gms.vision.Frame;
@@ -63,16 +64,11 @@ public class MainActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-		if(savedInstanceState != null)
-		{
-			Reference.deviceName = savedInstanceState.getString("device_name", "N/A");
-            Reference.currentDeviceAddress = savedInstanceState.getString("device_address", "");
-        }
         savedData = new File(this.getFilesDir().getPath(), "data.txt");
-        readFromSave();
-        setContentView(R.layout.mainactivity);
-        setDeviceIPTextView(Reference.deviceName);
-        setSupportActionBar((Toolbar) findViewById(R.id.actionbar));
+		setContentView(R.layout.mainactivity);
+		resetDisplayInfo();
+		setDeviceIPTextView(Reference.deviceName);
+		setSupportActionBar((Toolbar) findViewById(R.id.actionbar));
         requestPermissions();
     }
 
@@ -156,20 +152,26 @@ public class MainActivity extends AppCompatActivity
 
     public void tryReconnect(View v)
     {
-        readFromSave();
-        Intent intent = new Intent(NetworkThreadCreator.ACTION_RECONNECT, null, this, NetworkThreadCreator.class);
-        setDeviceIPTextView(Reference.deviceName);
-        intent.putExtra("device_address", Reference.currentDeviceAddress);
-        startService(intent);
-    }
+		if(!SocketHolder.valid())
+		{
+			readFromSave();
+			Intent intent = new Intent(NetworkThreadCreator.ACTION_RECONNECT, null, this, NetworkThreadCreator.class);
+			setDeviceIPTextView(Reference.deviceName);
+			intent.putExtra("device_address", Reference.currentDeviceAddress);
+			startService(intent);
+		}
+	}
 
     private void tryConnect(String address)
     {
         Intent intent = new Intent(NetworkThreadCreator.ACTION_CONNECT, null, this, NetworkThreadCreator.class);
-        setDeviceIPTextView(Reference.deviceName);
         intent.putExtra("device_address", address);
         startService(intent);
-    }
+		if(NetworkThreadCreator.isConnected)
+		{
+			setDeviceIPTextView(Reference.deviceName);
+		}
+	}
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu)
@@ -213,7 +215,8 @@ public class MainActivity extends AppCompatActivity
 			String folder = data.getStringExtra(DirectoryChooserActivity.RESULT_SELECTED_DIR);
             Uri uri = new Uri.Builder().path(folder).scheme("file").build();
             Intent sendIntent = new Intent(Intent.ACTION_SEND);
-            sendIntent.putExtra(Intent.EXTRA_STREAM, uri);
+			sendIntent.setType("folder");
+			sendIntent.putExtra(Intent.EXTRA_STREAM, uri);
             ((ClipboardManager) getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newIntent("", sendIntent));
         }
     }
@@ -222,6 +225,11 @@ public class MainActivity extends AppCompatActivity
     {
         ((TextView) findViewById(R.id.connected_device_address)).setText(toSet);
     }
+	
+	private void resetDisplayInfo()
+	{
+		((TextView) findViewById(R.id.connected_device_address)).setText(Reference.defaultDeviceName);
+	}
 
     public void chooseFolder()
     {

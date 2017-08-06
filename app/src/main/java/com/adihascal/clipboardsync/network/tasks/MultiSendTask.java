@@ -31,7 +31,8 @@ public class MultiSendTask
 			.setContentTitle("uploading")
 			.setSmallIcon(R.drawable.ic_file_upload_black_24dp);
 	private static final File dataDir = AppDummy.getContext().getCacheDir();
-	private static final int chunkSize = 52428800;
+	private static final int chunkSize = 15728640;
+	private final NotificationUpdater updater = new NotificationUpdater();
 	private List<File> files;
 	private List<File> binFiles;
 	private List<Object> objectsToSend = new LinkedList<>();
@@ -40,8 +41,7 @@ public class MultiSendTask
 	private int currentChunk = 0;
 	private long size;
 	private String sizeAsText;
-	private long totalBytesRead = 0L;
-	private long packets = 0L;
+	private long totalBytesSent = 0L;
 	
 	public MultiSendTask(List<Uri> uList)
 	{
@@ -58,7 +58,7 @@ public class MultiSendTask
 		}
 		int exp = (int) (Math.log(bytes) / Math.log(unit));
 		String pre = String.valueOf("kMGTPE".charAt(exp - 1));
-		return String.format(Locale.ENGLISH, "%.2f %sB", bytes / Math.pow(unit, exp), pre);
+		return String.format(Locale.ENGLISH, "%.3f %sB", bytes / Math.pow(unit, exp), pre);
 	}
 	
 	private void addToList(File f)
@@ -146,7 +146,7 @@ public class MultiSendTask
 	
 	private void writeObject(Object o) throws IOException
 	{
-		int bytesWritten = 0;
+		int bytesWritten;
 		long bytesRemaining;
 		byte[] tempBuffer;
 		
@@ -154,13 +154,13 @@ public class MultiSendTask
 		{
 			tempBuffer = convertToBytes(o);
 			bytesRemaining = tempBuffer.length;
-			bytesWritten += writeBytes(tempBuffer, 0, tempBuffer.length);
+			bytesWritten = writeBytes(tempBuffer, 0, tempBuffer.length);
 			bytesRemaining -= bytesWritten;
 			
 			if(bytesRemaining > 0)
 			{
 				nextStream();
-				writeBytes(tempBuffer, bytesWritten, tempBuffer.length - bytesWritten);
+				writeBytes(tempBuffer, bytesWritten, (int) Math.min(tempBuffer.length - bytesWritten, bytesRemaining));
 			}
 		}
 		else
@@ -176,10 +176,10 @@ public class MultiSendTask
 				bytesWritten = writeBytes(tempBuffer, 0, bytesRead);
 				bytesRemaining -= bytesWritten;
 				
-				if(bytesRead != bytesWritten && bytesRemaining > 0)
+				if(getFreeSpace() == 0 && bytesRemaining > 0)
 				{
 					nextStream();
-					writeBytes(tempBuffer, bytesRead - bytesWritten, tempBuffer.length - bytesWritten);
+					writeBytes(tempBuffer, bytesWritten, (int) Math.min(tempBuffer.length - bytesWritten, bytesRemaining));
 				}
 			}
 		}
@@ -205,9 +205,7 @@ public class MultiSendTask
 		int utflen = getUTFLength(str);
 		int c, count = 0;
 		
-		byte[] bytearr;
-		bytearr = new byte[utflen + 2];
-		
+		byte[] bytearr = new byte[utflen + 2];
 		bytearr[count++] = (byte) ((utflen >>> 8) & 0xFF);
 		bytearr[count++] = (byte) (utflen & 0xFF);
 		
@@ -273,9 +271,14 @@ public class MultiSendTask
 	
 	private int writeBytes(byte[] b, int off, int len) throws IOException
 	{
-		int ret = Math.min(chunkSize - currentStream.size(), len);
+		int ret = Math.min(getFreeSpace(), len);
 		currentStream.write(b, off, ret);
 		return ret;
+	}
+	
+	private int getFreeSpace()
+	{
+		return chunkSize - currentStream.size();
 	}
 	
 	private void nextStream()
@@ -295,18 +298,14 @@ public class MultiSendTask
 			while((bytesRead = input.read(buffer)) != -1)
 			{
 				out().write(buffer, 0, bytesRead);
-				totalBytesRead += bytesRead;
-				packets++;
-				if(packets % 75 == 0)
-				{
-					new NotificationUpdater().exec();
-				}
+				totalBytesSent += bytesRead;
 			}
 			input.close();
 			onChunkSent();
 		}
 		catch(IOException e)
 		{
+			manager.cancel(12);
 			e.printStackTrace();
 		}
 	}
@@ -366,12 +365,13 @@ public class MultiSendTask
 			
 			
 			currentStream = newStream(0);
-			
+			updater.exec();
 			for(Object o : objectsToSend)
 			{
 				writeObject(o);
 			}
 			nextStream();
+			updater.stop();
 			manager.cancel(12);
 		}
 		catch(IOException e)
@@ -387,17 +387,35 @@ public class MultiSendTask
 	
 	private class NotificationUpdater implements Runnable
 	{
+		private boolean run = true;
+		
 		@Override
-		public void run()
+		public synchronized void run()
 		{
-			builder.setProgress(100, (int) (100 * totalBytesRead / size), false)
-					.setContentText(humanReadableByteCount(totalBytesRead) + "/" + sizeAsText);
-			manager.notify(12, builder.build());
+			while(run)
+			{
+				try
+				{
+					builder.setProgress(100, (int) (100 * totalBytesSent / size), false)
+							.setContentText(humanReadableByteCount(totalBytesSent) + "/" + sizeAsText);
+					manager.notify(12, builder.build());
+					Thread.sleep(250);
+				}
+				catch(InterruptedException e)
+				{
+					e.printStackTrace();
+				}
+			}
 		}
 		
 		private void exec()
 		{
 			new Thread(this).start();
+		}
+		
+		private void stop()
+		{
+			this.run = false;
 		}
 	}
 }
