@@ -44,6 +44,7 @@ public class NetworkThreadCreator extends Service
 		if(!NetworkChangeReceiver.INSTANCE.init)
 		{
 			AppDummy.getContext().registerReceiver(NetworkChangeReceiver.INSTANCE, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+			isConnected = NetworkChangeReceiver.INSTANCE.checkConnection(this);
 			NetworkChangeReceiver.INSTANCE.init = true;
 		}
 	
@@ -82,13 +83,12 @@ public class NetworkThreadCreator extends Service
         }
         return START_STICKY_COMPATIBILITY;
     }
-
-    @Override
-    public void onDestroy()
+	
+	@Override
+	public void onDestroy()
     {
         MainActivity.writeToSave();
         new SyncClient("disconnect", null).start();
-        server.interrupt();
         Toast.makeText(AppDummy.getContext(), "ClipboardSync service stopped", Toast.LENGTH_SHORT).show();
         super.onDestroy();
     }

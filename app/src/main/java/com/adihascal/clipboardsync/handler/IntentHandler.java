@@ -24,8 +24,8 @@ public class IntentHandler implements IClipHandler
 		Intent intent = clip.getItemAt(0).getIntent();
 
         //I'm looking at you, Discord 9gag and Twitter
-        if(intent.getType().equals("text/plain"))
-        {
+		if(intent.getType() != null && intent.getType().equals("text/plain"))
+		{
 			new TextHandler().sendClip(clip);
 			return;
 		}
@@ -33,16 +33,22 @@ public class IntentHandler implements IClipHandler
 		if(intent.getAction().equals(Intent.ACTION_SEND))
 		{
 			Uri u = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-		
-			Cursor cursor = AppDummy.getContext().getContentResolver().query(u, null, null, null, null);
-			int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
-			cursor.moveToFirst();
-			long length = cursor.getLong(sizeIndex);
-			cursor.close();
-		
-			if(length <= 5242880)
+			if(!intent.getType().equals("folder"))
 			{
-				new SendTask(u).exec();
+				Cursor cursor = AppDummy.getContext().getContentResolver().query(u, null, null, null, null);
+				int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
+				cursor.moveToFirst();
+				long length = cursor.getLong(sizeIndex);
+				cursor.close();
+				
+				if(length <= 15728640)
+				{
+					new SendTask(u).exec();
+				}
+				else
+				{
+					new MultiSendTask(Collections.singletonList(u)).exec();
+				}
 			}
 			else
 			{

@@ -59,4 +59,9 @@ public class SocketHolder
 			e.printStackTrace();
 		}
 	}
+	
+	public static boolean valid()
+	{
+		return socket != null && !socket.isClosed();
+	}
 }

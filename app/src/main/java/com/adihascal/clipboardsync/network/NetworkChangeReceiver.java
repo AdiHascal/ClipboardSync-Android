@@ -24,13 +24,8 @@ public class NetworkChangeReceiver extends BroadcastReceiver
 	@Override
 	public void onReceive(Context context, Intent intent)
 	{
-		ConnectivityManager cm =
-				(ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-		
-		NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-		
 		boolean prev = NetworkThreadCreator.isConnected;
-		boolean now = activeNetwork != null && activeNetwork.isConnected() && activeNetwork.getType() == TYPE_WIFI;
+		boolean now = checkConnection(context);
 		
 		if(!prev && now)
 		{
@@ -79,6 +74,15 @@ public class NetworkChangeReceiver extends BroadcastReceiver
 			}
 			
 		}
+	}
+	
+	public boolean checkConnection(Context context)
+	{
+		ConnectivityManager cm =
+				(ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+		
+		NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+		return activeNetwork != null && activeNetwork.isConnected() && activeNetwork.getType() == TYPE_WIFI;
 	}
 	
 	public void addListener(IReconnectListener obj)

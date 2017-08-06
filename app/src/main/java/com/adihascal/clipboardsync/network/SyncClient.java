@@ -73,7 +73,8 @@ public class SyncClient extends Thread
 					out().writeUTF(this.command);
 					System.out.println("disconnected from " + address);
 					address = null;
-                    break;
+					service.getServer().interrupt();
+					break;
                 case "pause":
 					out().writeUTF("pause");
 					break;
