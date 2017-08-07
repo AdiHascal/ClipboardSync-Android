@@ -67,7 +67,7 @@
                 <data android:mimeType="*/*"/>
             </intent-filter>
         </activity>
-        <activity android:name=".ui.PasteActivity">
+        <activity android:name=".ui.DestinationChooserActivity">
         </activity>
         <activity android:name="net.rdrei.android.dirchooser.DirectoryChooserActivity"/>
     </application>

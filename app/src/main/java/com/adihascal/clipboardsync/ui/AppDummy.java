@@ -1,15 +1,13 @@
 package com.adihascal.clipboardsync.ui;
 
+import android.annotation.SuppressLint;
 import android.app.Application;
 import android.content.Context;
 
-import com.adihascal.clipboardsync.reference.Reference;
-
-import java.io.File;
-
 public class AppDummy extends Application
 {
-    private static Context context;
+	@SuppressLint("StaticFieldLeak")
+	private static Context context;
 
     public static Context getContext()
     {
@@ -21,6 +19,5 @@ public class AppDummy extends Application
     {
         super.attachBaseContext(base);
         context = base;
-        Reference.cacheFile = new File(AppDummy.getContext().getCacheDir(), "temp.bin");
     }
 }

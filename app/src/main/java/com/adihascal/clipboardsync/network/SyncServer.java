@@ -14,8 +14,8 @@ import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.handler.ClipHandlerRegistry;
 import com.adihascal.clipboardsync.service.NetworkThreadCreator;
 import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.ui.DestinationChooserActivity;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
 
 import static com.adihascal.clipboardsync.network.SocketHolder.in;
@@ -24,9 +24,6 @@ import static com.adihascal.clipboardsync.network.SocketHolder.terminate;
 
 public class SyncServer extends Thread
 {
-    private static final PendingIntent acceptIntent = PendingIntent.getService(AppDummy.getContext(), 12, new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("accept"), 0);
-    private static final PendingIntent refuseIntent = PendingIntent.getService(AppDummy.getContext(), 13, new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("refuse"), 0);
-
     @Override
     public void run()
     {
@@ -54,17 +51,20 @@ public class SyncServer extends Thread
                         AppDummy.getContext().stopService(new Intent(AppDummy.getContext(), NetworkThreadCreator.class));
                         break;
                     case "announce":
-                        NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext())
+						Intent acceptIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("accept");
+						Intent refuseIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("refuse");
+						acceptIntent.putExtra("files", in().readBoolean());
+						NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext())
                                 .setSmallIcon(R.drawable.ic_action_create)
                                 .setContentText("remote data detected. tap to accept or swipe to ignore")
                                 .setContentIntent
                                         (
-                                                acceptIntent
-                                        )
+												PendingIntent.getService(AppDummy.getContext(), 12, acceptIntent, PendingIntent.FLAG_CANCEL_CURRENT)
+										)
                                 .setDeleteIntent
                                         (
-                                                refuseIntent
-                                        )
+												PendingIntent.getService(AppDummy.getContext(), 13, refuseIntent, PendingIntent.FLAG_CANCEL_CURRENT)
+										)
                                 .setAutoCancel(true);
 						((NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE)).notify(4, builder.build());
 						break;
@@ -102,7 +102,22 @@ public class SyncServer extends Thread
         {
             try
             {
-				new DataOutputStream(out()).writeUTF(intent.getAction());
+				switch(intent.getAction())
+				{
+					case "accept":
+						if(intent.getBooleanExtra("files", false))
+						{
+							AppDummy.getContext().startActivity(new Intent().setClass(AppDummy.getContext(), DestinationChooserActivity.class));
+						}
+						else
+						{
+							out().writeUTF("accept");
+						}
+						break;
+					case "refuse":
+						out().writeUTF(intent.getAction());
+						break;
+				}
 			}
 			catch(IOException e)
             {

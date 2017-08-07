@@ -65,6 +65,6 @@ public class IntentHandler implements IClipHandler
     @Override
 	public void receiveClip(ClipboardManager manager)
 	{
-		new ReceiveTask().exec();
+		new ReceiveTask(manager.getPrimaryClip().getItemAt(0).getIntent()).exec();
 	}
 }
