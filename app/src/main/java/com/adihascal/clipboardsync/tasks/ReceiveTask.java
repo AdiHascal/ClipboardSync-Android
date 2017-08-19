@@ -63,7 +63,16 @@ public class ReceiveTask implements IReconnectListener
 			for(int i = 0; i < packedFiles.size(); i++)
 			{
 				RandomAccessFile raf = packedFiles.get(i);
-				getChunk(raf, i == packedFiles.size() - 1 ? size % chunkSize : chunkSize);
+				long length;
+				if(i == packedFiles.size() - 1 && size % chunkSize != 0)
+				{
+					length = size % chunkSize;
+				}
+				else
+				{
+					length = chunkSize;
+				}
+				getChunk(raf, length);
 				raf.close();
 			}
 			updater.stop();
