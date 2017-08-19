@@ -44,10 +44,10 @@ public class NetworkThreadCreator extends Service
 		if(!NetworkChangeReceiver.INSTANCE.init)
 		{
 			AppDummy.getContext().registerReceiver(NetworkChangeReceiver.INSTANCE, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
-			isConnected = NetworkChangeReceiver.INSTANCE.checkConnection(this);
 			NetworkChangeReceiver.INSTANCE.init = true;
 		}
 	
+		isConnected = NetworkChangeReceiver.INSTANCE.checkConnection(this);
 		if(intent != null && isConnected)
 		{
 			if(intent.getAction().equals("refreshNotification"))

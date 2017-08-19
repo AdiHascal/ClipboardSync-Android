@@ -1,4 +1,4 @@
-package com.adihascal.clipboardsync.network.tasks;
+package com.adihascal.clipboardsync.tasks;
 
 import android.app.NotificationManager;
 import android.content.Context;
@@ -357,6 +357,7 @@ public class MultiSendTask
 			}
 			
 			out().writeUTF("application/x-java-serialized-object");
+			out().writeLong(size);
 			out().writeInt(files.size());
 			
 			
@@ -395,7 +396,7 @@ public class MultiSendTask
 					builder.setProgress(100, (int) (100 * totalBytesSent / size), false)
 							.setContentText(humanReadableByteCount(totalBytesSent) + "/" + sizeAsText);
 					manager.notify(12, builder.build());
-					Thread.sleep(250);
+					Thread.sleep(200);
 				}
 				catch(InterruptedException e)
 				{

@@ -7,6 +7,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 
 import com.adihascal.clipboardsync.service.NetworkThreadCreator;
+import com.adihascal.clipboardsync.ui.MainActivity;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -50,6 +51,7 @@ public class NetworkChangeReceiver extends BroadcastReceiver
 				}
 			}).start();
 			NetworkThreadCreator.isConnected = true;
+			MainActivity.reconnect();
 			if(listeners.size() > 0)
 			{
 				new SyncClient("resume_transfer", null).start();

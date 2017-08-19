@@ -59,21 +59,9 @@ public class MainActivity extends AppCompatActivity
 			e.printStackTrace();
         }
     }
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState)
-    {
-        super.onCreate(savedInstanceState);
-        savedData = new File(this.getFilesDir().getPath(), "data.txt");
-		setContentView(R.layout.mainactivity);
-		resetDisplayInfo();
-		setDeviceIPTextView(Reference.deviceName);
-		setSupportActionBar((Toolbar) findViewById(R.id.actionbar));
-        requestPermissions();
-    }
-
-    private void readFromSave()
-    {
+	
+	private static void readFromSave()
+	{
         try
         {
 			if(!savedData.exists())
@@ -95,9 +83,29 @@ public class MainActivity extends AppCompatActivity
 			e.printStackTrace();
         }
     }
+	
+	public static void reconnect()
+	{
+		readFromSave();
+		Intent intent = new Intent(NetworkThreadCreator.ACTION_CONNECT, null, AppDummy.getContext(), NetworkThreadCreator.class);
+		intent.putExtra("device_address", Reference.currentDeviceAddress);
+		AppDummy.getContext().startService(intent);
+	}
 
     @Override
-    protected void onPause()
+	protected void onCreate(Bundle savedInstanceState)
+	{
+		super.onCreate(savedInstanceState);
+		savedData = new File(this.getFilesDir().getPath(), "data.txt");
+		setContentView(R.layout.mainactivity);
+		resetDisplayInfo();
+		setDeviceIPTextView(Reference.deviceName);
+		setSupportActionBar((Toolbar) findViewById(R.id.actionbar));
+		requestPermissions();
+	}
+	
+	@Override
+	protected void onPause()
     {
         writeToSave();
         super.onPause();
@@ -149,8 +157,8 @@ public class MainActivity extends AppCompatActivity
 			startActivityForResult(takePictureIntent, 1);
         }
     }
-
-    public void tryReconnect(View v)
+	
+	public void tryReconnect(View v)
     {
 		if(!SocketHolder.valid())
 		{

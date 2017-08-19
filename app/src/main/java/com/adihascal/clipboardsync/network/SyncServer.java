@@ -24,58 +24,82 @@ import static com.adihascal.clipboardsync.network.SocketHolder.terminate;
 
 public class SyncServer extends Thread
 {
-    @Override
-    public void run()
+	
+	@Override
+	public void run()
     {
-        try
-        {
-            Looper.prepare();
+		try
+		{
+			Looper.prepare();
 			while(true)
 			{
-				if(!NetworkThreadCreator.isConnected)
+				try
 				{
-					wait(1000);
-					continue;
+					synchronized(this)
+					{
+						int seconds = 0;
+						if(!NetworkThreadCreator.isConnected)
+						{
+							while(seconds < 10)
+							{
+								if(!NetworkThreadCreator.isConnected)
+								{
+									wait(1000);
+									seconds++;
+								}
+							}
+						}
+						
+						if(!NetworkThreadCreator.isConnected)
+						{
+							throw new IOException("connection timeout");
+						}
+					}
+					
+					String command = in().readUTF();
+					switch(command)
+					{
+						case "receive":
+							NetworkThreadCreator.isBusy = true;
+							ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+							ClipHandlerRegistry.getHandlerFor(in().readUTF()).receiveClip(manager);
+							NetworkThreadCreator.isBusy = false;
+							break;
+						case "disconnect":
+							AppDummy.getContext().stopService(new Intent(AppDummy.getContext(), NetworkThreadCreator.class));
+							return;
+						case "announce":
+							Intent acceptIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("accept");
+							Intent refuseIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("refuse");
+							acceptIntent.putExtra("files", in().readBoolean());
+							NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext())
+									.setSmallIcon(R.drawable.ic_action_create)
+									.setContentText("remote data detected. tap to accept or swipe to ignore")
+									.setContentIntent
+											(
+													PendingIntent.getService(AppDummy.getContext(), 12, acceptIntent, PendingIntent.FLAG_CANCEL_CURRENT)
+											)
+									.setDeleteIntent
+											(
+													PendingIntent.getService(AppDummy.getContext(), 13, refuseIntent, PendingIntent.FLAG_CANCEL_CURRENT)
+											)
+									.setAutoCancel(true);
+							((NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE)).notify(4, builder.build());
+							break;
+					}
 				}
-		
-				String command = in().readUTF();
-				switch(command)
+				catch(InterruptedException | IOException e)
 				{
-					case "receive":
-						NetworkThreadCreator.isBusy = true;
-                        ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-						ClipHandlerRegistry.getHandlerFor(in().readUTF()).receiveClip(manager);
-						NetworkThreadCreator.isBusy = false;
-						break;
-                    case "disconnect":
-                        AppDummy.getContext().stopService(new Intent(AppDummy.getContext(), NetworkThreadCreator.class));
-                        break;
-                    case "announce":
-						Intent acceptIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("accept");
-						Intent refuseIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("refuse");
-						acceptIntent.putExtra("files", in().readBoolean());
-						NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext())
-                                .setSmallIcon(R.drawable.ic_action_create)
-                                .setContentText("remote data detected. tap to accept or swipe to ignore")
-                                .setContentIntent
-                                        (
-												PendingIntent.getService(AppDummy.getContext(), 12, acceptIntent, PendingIntent.FLAG_CANCEL_CURRENT)
-										)
-                                .setDeleteIntent
-                                        (
-												PendingIntent.getService(AppDummy.getContext(), 13, refuseIntent, PendingIntent.FLAG_CANCEL_CURRENT)
-										)
-                                .setAutoCancel(true);
-						((NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE)).notify(4, builder.build());
-						break;
+					e.printStackTrace();
+					break;
 				}
-            }
-        }
-		catch(IOException | InterruptedException e)
+			}
+		}
+		catch(Exception e)
 		{
 			e.printStackTrace();
-        }
-    }
+		}
+	}
 
     @Override
     public void interrupt()

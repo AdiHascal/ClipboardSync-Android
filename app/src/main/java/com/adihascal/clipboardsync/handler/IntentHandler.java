@@ -7,9 +7,10 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
 
-import com.adihascal.clipboardsync.network.tasks.MultiSendTask;
-import com.adihascal.clipboardsync.network.tasks.ReceiveTask;
-import com.adihascal.clipboardsync.network.tasks.SendTask;
+import com.adihascal.clipboardsync.tasks.MultiSendTask;
+import com.adihascal.clipboardsync.tasks.ReceiveTask;
+import com.adihascal.clipboardsync.tasks.SendTask;
+import com.adihascal.clipboardsync.tasks.UnpackTask;
 import com.adihascal.clipboardsync.ui.AppDummy;
 
 import java.io.IOException;
@@ -63,8 +64,9 @@ public class IntentHandler implements IClipHandler
 	}
 
     @Override
-	public void receiveClip(ClipboardManager manager)
+	public void receiveClip(ClipboardManager manager) throws IOException
 	{
-		new ReceiveTask(manager.getPrimaryClip().getItemAt(0).getIntent()).exec();
+		new ReceiveTask().exec();
+		new UnpackTask(AppDummy.getContext().getCacheDir().listFiles(), manager.getPrimaryClip().getItemAt(0).getIntent()).exec();
 	}
 }

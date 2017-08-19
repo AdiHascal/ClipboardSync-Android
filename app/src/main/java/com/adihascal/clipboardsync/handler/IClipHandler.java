@@ -20,5 +20,5 @@ public interface IClipHandler
      *
      * @param manager The clipboard manager, for convenience
      */
-	void receiveClip(ClipboardManager manager);
+	void receiveClip(ClipboardManager manager) throws IOException;
 }

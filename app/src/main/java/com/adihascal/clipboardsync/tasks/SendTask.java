@@ -1,4 +1,4 @@
-package com.adihascal.clipboardsync.network.tasks;
+package com.adihascal.clipboardsync.tasks;
 
 import android.database.Cursor;
 import android.net.Uri;

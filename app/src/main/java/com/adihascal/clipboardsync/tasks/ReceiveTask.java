@@ -1,10 +1,7 @@
-package com.adihascal.clipboardsync.network.tasks;
+package com.adihascal.clipboardsync.tasks;
 
 import android.app.NotificationManager;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
-import android.content.Intent;
 import android.support.v4.app.NotificationCompat;
 
 import com.adihascal.clipboardsync.R;
@@ -12,10 +9,10 @@ import com.adihascal.clipboardsync.network.IReconnectListener;
 import com.adihascal.clipboardsync.network.NetworkChangeReceiver;
 import com.adihascal.clipboardsync.ui.AppDummy;
 
-import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.util.ArrayList;
 import java.util.Locale;
 
 import static com.adihascal.clipboardsync.network.SocketHolder.in;
@@ -26,21 +23,11 @@ public class ReceiveTask implements IReconnectListener
 	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext())
 			.setContentTitle("downloading")
 			.setSmallIcon(R.drawable.ic_file_download_black_24dp);
+	private static final int chunkSize = 15728640;
 	private final NotificationUpdater updater = new NotificationUpdater();
-	private final String dest;
-	private long totalBytesRead = 0L;
+	private long totalBytesWritten = 0L;
 	private long size = 0L;
 	private String sizeAsText;
-	
-	public ReceiveTask(Intent intent)
-	{
-		this.dest = intent.getStringExtra("folder");
-		ClipData clip = intent.getClipData();
-		if(clip != null)
-		{
-			((ClipboardManager) AppDummy.getContext().getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(intent.getClipData());
-		}
-	}
 	
 	@SuppressWarnings("SpellCheckingInspection")
 	private String humanReadableByteCount(long bytes)
@@ -55,60 +42,6 @@ public class ReceiveTask implements IReconnectListener
 		return String.format(Locale.ENGLISH, "%.3f %sB", bytes / Math.pow(unit, exp), pre);
 	}
 	
-	private void receiveFile(DataInputStream in, String parent) throws IOException
-	{
-		File f;
-		String path = dest;
-		String thing = in.readUTF();
-		totalBytesRead += getUTFLength(thing);
-		if(thing.equals("file"))
-		{
-			if(parent != null)
-			{
-				path = parent;
-			}
-			String name = in.readUTF();
-			totalBytesRead += getUTFLength(name);
-			path += "/" + name;
-			f = new File(path);
-			f.createNewFile();
-			
-			FileOutputStream out = new FileOutputStream(f);
-			long length = in.readLong();
-			totalBytesRead += 8;
-			byte[] buffer = new byte[15360];
-			int bytesRead;
-			long fileBytesRead = 0;
-			while(fileBytesRead < length)
-			{
-				bytesRead = in.read(buffer, 0, (int) Math.min(length - fileBytesRead, buffer.length));
-				totalBytesRead += bytesRead;
-				fileBytesRead += bytesRead;
-				out.write(buffer, 0, bytesRead);
-				out.flush();
-			}
-			out.close();
-		}
-		else if(thing.equals("dir"))
-		{
-			if(parent != null)
-			{
-				path = parent;
-			}
-			String name = in.readUTF();
-			totalBytesRead += getUTFLength(name);
-			path += "/" + name;
-			f = new File(path);
-			f.mkdir();
-			int nFiles = in.readInt();
-			totalBytesRead += 4;
-			for(int i = 0; i < nFiles; i++)
-			{
-				receiveFile(in, f.getPath());
-			}
-		}
-	}
-	
 	public void run()
 	{
 		try
@@ -117,10 +50,21 @@ public class ReceiveTask implements IReconnectListener
 			size = in().readLong();
 			sizeAsText = humanReadableByteCount(size);
 			updater.exec();
-			int nFiles = in().readInt();
-			for(int i = 0; i < nFiles; i++)
+			int nChunks = (int) Math.ceil((double) size / chunkSize);
+			ArrayList<RandomAccessFile> packedFiles = new ArrayList<>(nChunks);
+			
+			for(int i = 0; i < nChunks; i++)
 			{
-				receiveFile(in(), null);
+				File p = new File(AppDummy.getContext().getCacheDir(), Integer.toString(i) + ".bin");
+				p.createNewFile();
+				packedFiles.add(i, new RandomAccessFile(p, "rw"));
+			}
+			
+			for(int i = 0; i < packedFiles.size(); i++)
+			{
+				RandomAccessFile raf = packedFiles.get(i);
+				getChunk(raf, i == packedFiles.size() - 1 ? size % chunkSize : chunkSize);
+				raf.close();
 			}
 			updater.stop();
 		}
@@ -130,26 +74,18 @@ public class ReceiveTask implements IReconnectListener
 		}
 	}
 	
-	private int getUTFLength(String str)
+	private void getChunk(RandomAccessFile raf, long length) throws IOException
 	{
-		int len = 0;
-		
-		for(char c : str.toCharArray())
+		byte[] buffer = new byte[15360];
+		int bytesRead;
+		int totalBytesRead = (int) raf.getFilePointer();
+		while(totalBytesRead < length)
 		{
-			if((c >= 0x0001) && (c <= 0x007F))
-			{
-				len++;
-			}
-			else if(c > 0x07FF)
-			{
-				len += 3;
-			}
-			else
-			{
-				len += 2;
-			}
+			bytesRead = in().read(buffer, 0, Math.min(chunkSize - totalBytesRead, buffer.length));
+			totalBytesRead += bytesRead;
+			totalBytesWritten += bytesRead;
+			raf.write(buffer, 0, bytesRead);
 		}
-		return len + 2;
 	}
 	
 	public void exec()
@@ -178,10 +114,10 @@ public class ReceiveTask implements IReconnectListener
 			{
 				try
 				{
-					builder.setProgress(100, (int) (100 * totalBytesRead / size), false)
-							.setContentText(humanReadableByteCount(totalBytesRead) + "/" + sizeAsText);
+					builder.setProgress(100, (int) (100 * totalBytesWritten / size), false)
+							.setContentText(humanReadableByteCount(totalBytesWritten) + "/" + sizeAsText);
 					manager.notify(10, builder.build());
-					Thread.sleep(250);
+					Thread.sleep(200);
 				}
 				catch(InterruptedException e)
 				{
