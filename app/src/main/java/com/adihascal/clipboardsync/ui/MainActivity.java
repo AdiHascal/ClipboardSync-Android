@@ -46,7 +46,7 @@ public class MainActivity extends AppCompatActivity
     {
         try
         {
-			if(!Reference.deviceName.equals(Reference.defaultDeviceName))
+			if(Reference.currentDeviceAddress.split(".").length == 4 && !Reference.currentDeviceAddress.equals("0.0.0.0"))
 			{
 				DataOutputStream fout = new DataOutputStream(new FileOutputStream(savedData));
                 String s = Reference.currentDeviceAddress + "," + Reference.deviceName;
@@ -90,6 +90,13 @@ public class MainActivity extends AppCompatActivity
 		Intent intent = new Intent(NetworkThreadCreator.ACTION_CONNECT, null, AppDummy.getContext(), NetworkThreadCreator.class);
 		intent.putExtra("device_address", Reference.currentDeviceAddress);
 		AppDummy.getContext().startService(intent);
+	}
+	
+	@Override
+	public void onBackPressed()
+	{
+		super.onBackPressed();
+		finish();
 	}
 
     @Override

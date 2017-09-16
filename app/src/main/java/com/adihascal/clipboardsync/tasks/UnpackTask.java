@@ -5,21 +5,20 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 
+import com.adihascal.clipboardsync.handler.TaskHandler;
 import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.util.ArrayStreamSupplier;
+import com.adihascal.clipboardsync.util.DynamicSequenceInputStream;
 
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.SequenceInputStream;
-import java.util.Enumeration;
 
-public class UnpackTask
+public class UnpackTask implements ITask
 {
-	private final DataInputStream src;
+	private final DynamicSequenceInputStream src;
 	private final String dest;
 	
 	public UnpackTask(File[] sourceFiles, Intent intent) throws IOException
@@ -31,38 +30,12 @@ public class UnpackTask
 			((ClipboardManager) AppDummy.getContext().getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(clip);
 		}
 		
-		final InputStream[] streams = new InputStream[sourceFiles.length];
+		AutoDeleteFileInputStream[] streams = new AutoDeleteFileInputStream[sourceFiles.length];
 		for(int i = 0; i < sourceFiles.length; i++)
 		{
 			streams[i] = new AutoDeleteFileInputStream(sourceFiles[i]);
 		}
-		Enumeration<InputStream> e = new Enumeration<InputStream>()
-		{
-			int index = 0;
-			
-			@Override
-			public boolean hasMoreElements()
-			{
-				return index < streams.length;
-			}
-			
-			@Override
-			public InputStream nextElement()
-			{
-				return streams[index++];
-			}
-		};
-		this.src = new DataInputStream(new SequenceInputStream(e));
-	}
-	
-	public void exec() throws IOException
-	{
-		int nFiles = src.readInt();
-		for(int i = 0; i < nFiles; i++)
-		{
-			read(null);
-		}
-		this.src.close();
+		this.src = new DynamicSequenceInputStream(new ArrayStreamSupplier<>(streams));
 	}
 	
 	private void read(String parent) throws IOException
@@ -109,6 +82,30 @@ public class UnpackTask
 		}
 	}
 	
+	@Override
+	public void execute()
+	{
+		try
+		{
+			int nFiles = src.readInt();
+			for(int i = 0; i < nFiles; i++)
+			{
+				read(null);
+			}
+			this.src.close();
+		}
+		catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
+	
+	@Override
+	public void finish()
+	{
+		TaskHandler.pop();
+	}
+	
 	private static class AutoDeleteFileInputStream extends FileInputStream
 	{
 		private final File f;
@@ -123,10 +120,25 @@ public class UnpackTask
 		public void close() throws IOException
 		{
 			super.close();
-			if(!f.delete())
+			new Thread(new Runnable()
 			{
-				throw new IOException("failed to delete file");
-			}
+				@Override
+				public void run()
+				{
+					try
+					{
+						Thread.sleep(20);
+						if(!f.delete())
+						{
+							throw new IOException("failed to delete file");
+						}
+					}
+					catch(InterruptedException | IOException e)
+					{
+						e.printStackTrace();
+					}
+				}
+			}).start();
 		}
 	}
 }

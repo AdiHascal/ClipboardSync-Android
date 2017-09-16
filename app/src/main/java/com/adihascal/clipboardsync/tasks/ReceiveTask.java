@@ -5,22 +5,21 @@ import android.content.Context;
 import android.support.v4.app.NotificationCompat;
 
 import com.adihascal.clipboardsync.R;
-import com.adihascal.clipboardsync.network.IReconnectListener;
-import com.adihascal.clipboardsync.network.NetworkChangeReceiver;
+import com.adihascal.clipboardsync.handler.TaskHandler;
 import com.adihascal.clipboardsync.ui.AppDummy;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
 import java.util.Locale;
 
 import static com.adihascal.clipboardsync.network.SocketHolder.in;
+import static com.adihascal.clipboardsync.network.SocketHolder.out;
 
-public class ReceiveTask implements IReconnectListener
+public class ReceiveTask implements ITask
 {
 	private static final NotificationManager manager = (NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext())
+	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
 			.setContentTitle("downloading")
 			.setSmallIcon(R.drawable.ic_file_download_black_24dp);
 	private static final int chunkSize = 15728640;
@@ -42,29 +41,64 @@ public class ReceiveTask implements IReconnectListener
 		return String.format(Locale.ENGLISH, "%.3f %sB", bytes / Math.pow(unit, exp), pre);
 	}
 	
-	public void run()
+	private void getChunk(RandomAccessFile raf, long length)
+	{
+		int totalBytesRead = 0;
+		
+		try
+		{
+			byte[] buffer = new byte[15360];
+			int bytesRead;
+			totalBytesRead = (int) raf.getFilePointer();
+			while(totalBytesRead < length)
+			{
+				bytesRead = in().read(buffer, 0, Math.min(chunkSize - totalBytesRead, buffer.length));
+				totalBytesRead += bytesRead;
+				totalBytesWritten += bytesRead;
+				raf.write(buffer, 0, bytesRead);
+			}
+		}
+		catch(IOException e)
+		{
+			e.printStackTrace();
+			try
+			{
+				System.out.println("network error. waiting.");
+				TaskHandler.pause();
+				out().writeLong(totalBytesRead);
+				raf.seek(totalBytesRead);
+				getChunk(raf, length);
+			}
+			catch(InterruptedException | IOException e1)
+			{
+				e1.printStackTrace();
+			}
+		}
+	}
+	
+	@Override
+	public synchronized void execute()
 	{
 		try
 		{
-			NetworkChangeReceiver.INSTANCE.addListener(this);
 			size = in().readLong();
 			sizeAsText = humanReadableByteCount(size);
 			updater.exec();
 			int nChunks = (int) Math.ceil((double) size / chunkSize);
-			ArrayList<RandomAccessFile> packedFiles = new ArrayList<>(nChunks);
+			RandomAccessFile[] packedFiles = new RandomAccessFile[nChunks];
 			
 			for(int i = 0; i < nChunks; i++)
 			{
 				File p = new File(AppDummy.getContext().getCacheDir(), Integer.toString(i) + ".bin");
 				p.createNewFile();
-				packedFiles.add(i, new RandomAccessFile(p, "rw"));
+				packedFiles[i] = new RandomAccessFile(p, "rw");
 			}
 			
-			for(int i = 0; i < packedFiles.size(); i++)
+			for(int i = 0; i < packedFiles.length; i++)
 			{
-				RandomAccessFile raf = packedFiles.get(i);
+				RandomAccessFile raf = packedFiles[i];
 				long length;
-				if(i == packedFiles.size() - 1 && size % chunkSize != 0)
+				if(i == packedFiles.length - 1 && size % chunkSize != 0)
 				{
 					length = size % chunkSize;
 				}
@@ -83,33 +117,10 @@ public class ReceiveTask implements IReconnectListener
 		}
 	}
 	
-	private void getChunk(RandomAccessFile raf, long length) throws IOException
-	{
-		byte[] buffer = new byte[15360];
-		int bytesRead;
-		int totalBytesRead = (int) raf.getFilePointer();
-		while(totalBytesRead < length)
-		{
-			bytesRead = in().read(buffer, 0, Math.min(chunkSize - totalBytesRead, buffer.length));
-			totalBytesRead += bytesRead;
-			totalBytesWritten += bytesRead;
-			raf.write(buffer, 0, bytesRead);
-		}
-	}
-	
-	public void exec()
-	{
-		this.run();
-	}
-	
 	@Override
-	public void onReconnect()
+	public void finish()
 	{
-		//maybe won't work. if it doesn't notify directly from NetworkChangeReceiver
-		synchronized(this)
-		{
-			notify();
-		}
+		TaskHandler.pop();
 	}
 	
 	private class NotificationUpdater implements Runnable
@@ -125,7 +136,7 @@ public class ReceiveTask implements IReconnectListener
 				{
 					builder.setProgress(100, (int) (100 * totalBytesWritten / size), false)
 							.setContentText(humanReadableByteCount(totalBytesWritten) + "/" + sizeAsText);
-					manager.notify(10, builder.build());
+					manager.notify(12, builder.build());
 					Thread.sleep(200);
 				}
 				catch(InterruptedException e)
@@ -133,7 +144,7 @@ public class ReceiveTask implements IReconnectListener
 					e.printStackTrace();
 				}
 			}
-			manager.cancel(10);
+			manager.cancel(12);
 		}
 		
 		private void exec()

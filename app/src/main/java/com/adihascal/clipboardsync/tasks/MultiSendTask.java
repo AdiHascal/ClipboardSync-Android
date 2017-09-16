@@ -6,27 +6,33 @@ import android.net.Uri;
 import android.support.v4.app.NotificationCompat;
 
 import com.adihascal.clipboardsync.R;
+import com.adihascal.clipboardsync.handler.TaskHandler;
+import com.adihascal.clipboardsync.network.NetworkChangeReceiver;
 import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.util.DynamicSequenceOutputStream;
+import com.adihascal.clipboardsync.util.IStreamSupplier;
 import com.adihascal.clipboardsync.util.UriUtils;
 
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 
+import static com.adihascal.clipboardsync.network.SocketHolder.in;
 import static com.adihascal.clipboardsync.network.SocketHolder.out;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
-public class MultiSendTask
+public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 {
 	private static final NotificationManager manager = (NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext())
+	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
 			.setContentTitle("uploading")
 			.setSmallIcon(R.drawable.ic_file_upload_black_24dp);
 	private static final File dataDir = AppDummy.getContext().getCacheDir();
@@ -35,8 +41,7 @@ public class MultiSendTask
 	private List<File> files;
 	private List<File> binFiles;
 	private List<Object> objectsToSend = new LinkedList<>();
-	private DataOutputStream currentStream;
-	private int nChunks;
+	private DynamicSequenceOutputStream stream;
 	private int currentChunk = 0;
 	private long size;
 	private String sizeAsText;
@@ -142,41 +147,17 @@ public class MultiSendTask
 	
 	private void writeObject(Object o) throws IOException
 	{
-		int bytesWritten;
-		long bytesRemaining;
-		byte[] tempBuffer;
-		
 		if(!(o instanceof File))
 		{
-			tempBuffer = convertToBytes(o);
-			bytesRemaining = tempBuffer.length;
-			bytesWritten = writeBytes(tempBuffer, 0, tempBuffer.length);
-			bytesRemaining -= bytesWritten;
-			
-			if(bytesRemaining > 0)
-			{
-				nextStream();
-				writeBytes(tempBuffer, bytesWritten, (int) Math.min(tempBuffer.length - bytesWritten, bytesRemaining));
-			}
+			stream.write(convertToBytes(o));
 		}
 		else
 		{
-			bytesRemaining = ((File) o).length();
 			FileInputStream in = new FileInputStream((File) o);
-			
-			tempBuffer = new byte[chunkSize / 1024];
-			int bytesRead;
-			
-			while((bytesRead = in.read(tempBuffer, 0, tempBuffer.length)) != -1)
+			byte[] tempBuffer = new byte[chunkSize / 1024];
+			while(in.read(tempBuffer, 0, tempBuffer.length) != -1)
 			{
-				bytesWritten = writeBytes(tempBuffer, 0, bytesRead);
-				bytesRemaining -= bytesWritten;
-				
-				if(getFreeSpace() == 0 && bytesRemaining > 0)
-				{
-					nextStream();
-					writeBytes(tempBuffer, bytesWritten, (int) Math.min(tempBuffer.length - bytesWritten, bytesRemaining));
-				}
+				stream.write(tempBuffer);
 			}
 		}
 	}
@@ -265,65 +246,80 @@ public class MultiSendTask
 		return buf;
 	}
 	
-	private int writeBytes(byte[] b, int off, int len) throws IOException
-	{
-		int ret = Math.min(getFreeSpace(), len);
-		currentStream.write(b, off, ret);
-		return ret;
-	}
-	
-	private int getFreeSpace()
-	{
-		return chunkSize - currentStream.size();
-	}
-	
-	private void nextStream()
+	@Override
+	public OutputStream next(int prevIndex)
 	{
 		try
 		{
-			currentStream.flush();
-			currentStream.close();
-			currentChunk++;
-			if(currentChunk < nChunks)
-			{
-				currentStream = newStream(currentChunk);
-			}
+			return new FileOutputStream(binFiles.get(++prevIndex));
+		}
+		catch(FileNotFoundException e)
+		{
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	@Override
+	public boolean canProvide(int index)
+	{
+		return index < currentChunk;
+	}
+	
+	@Override
+	public void afterClose(int index)
+	{
+		afterClose(index, false);
+	}
+	
+	private void afterClose(int index, boolean recursive)
+	{
+		try
+		{
 			byte[] buffer = new byte[chunkSize / 1024];
 			int bytesRead;
-			FileInputStream input = new FileInputStream(binFiles.get(currentChunk - 1));
+			RandomAccessFile input = new RandomAccessFile(binFiles.get(index), "rw");
+			if(!recursive)
+			{
+				currentChunk++;
+			}
+			else
+			{
+				input.seek(in().readLong());
+			}
+			
 			while((bytesRead = input.read(buffer)) != -1)
 			{
 				out().write(buffer, 0, bytesRead);
 				totalBytesSent += bytesRead;
 			}
 			input.close();
-			onChunkSent();
+			binFiles.get(index).delete();
 		}
 		catch(IOException e)
 		{
-			manager.cancel(12);
-			e.printStackTrace();
-		}
-	}
-	
-	private DataOutputStream newStream(int i) throws FileNotFoundException
-	{
-		return new DataOutputStream((new FileOutputStream(binFiles.get(i))));
-	}
-	
-	private void onChunkSent()
-	{
-		if(currentChunk > 1)
-		{
-			File f = binFiles.get(currentChunk - 2);
-			if(f.exists())
+			try
 			{
-				f.delete();
+				wait(30000);
+				if(NetworkChangeReceiver.INSTANCE.checkConnection(AppDummy.getContext()))
+				{
+					afterClose(index, true);
+					e.printStackTrace();
+				}
+				else
+				{
+					throw new IOException("timeout");
+				}
+			}
+			catch(InterruptedException | IOException e1)
+			{
+				e1.printStackTrace();
 			}
 		}
 	}
 	
-	public void run()
+	@Override
+	public synchronized void execute()
 	{
 		try
 		{
@@ -346,7 +342,7 @@ public class MultiSendTask
 			}
 			sizeAsText = humanReadableByteCount(size);
 			
-			nChunks = (int) Math.ceil((double) size / chunkSize);
+			int nChunks = (int) Math.ceil((double) size / chunkSize);
 			
 			binFiles = new ArrayList<>(files.size());
 			for(int i = 0; i < nChunks; i++)
@@ -361,13 +357,12 @@ public class MultiSendTask
 			out().writeInt(files.size());
 			
 			
-			currentStream = newStream(0);
 			updater.exec();
+			stream = new DynamicSequenceOutputStream(this);
 			for(Object o : objectsToSend)
 			{
 				writeObject(o);
 			}
-			nextStream();
 			updater.stop();
 			manager.cancel(12);
 		}
@@ -377,9 +372,10 @@ public class MultiSendTask
 		}
 	}
 	
-	public void exec()
+	@Override
+	public void finish()
 	{
-		this.run();
+		TaskHandler.pop();
 	}
 	
 	private class NotificationUpdater implements Runnable
@@ -387,7 +383,7 @@ public class MultiSendTask
 		private boolean run = true;
 		
 		@Override
-		public synchronized void run()
+		public void run()
 		{
 			while(run)
 			{

@@ -14,11 +14,14 @@ import android.widget.Toast;
 
 import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.network.NetworkChangeReceiver;
+import com.adihascal.clipboardsync.network.SocketHolder;
 import com.adihascal.clipboardsync.network.SyncClient;
 import com.adihascal.clipboardsync.network.SyncServer;
 import com.adihascal.clipboardsync.ui.AppDummy;
 import com.adihascal.clipboardsync.ui.MainActivity;
 import com.adihascal.clipboardsync.util.ClipboardEventListener;
+
+import java.io.IOException;
 
 import static android.support.v4.app.NotificationCompat.PRIORITY_MIN;
 
@@ -52,8 +55,8 @@ public class NetworkThreadCreator extends Service
 		{
 			if(intent.getAction().equals("refreshNotification"))
             {
-                NotificationCompat.Builder notification = new NotificationCompat.Builder(AppDummy.getContext())
-                        .setSmallIcon(R.mipmap.ic_launcher)
+				NotificationCompat.Builder notification = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
+						.setSmallIcon(R.mipmap.ic_launcher)
                         .setContentTitle("ClipboardSync is running")
                         .setContentIntent(openMainIntent)
                         .setPriority(PRIORITY_MIN)
@@ -65,8 +68,8 @@ public class NetworkThreadCreator extends Service
                 String address = intent.getStringExtra("device_address");
                 if(address != null)
                 {
-                    NotificationCompat.Builder notification = new NotificationCompat.Builder(AppDummy.getContext())
-                            .setSmallIcon(R.mipmap.ic_launcher)
+					NotificationCompat.Builder notification = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
+							.setSmallIcon(R.mipmap.ic_launcher)
                             .setContentTitle("ClipboardSync is running")
                             .setContentIntent(openMainIntent)
                             .setPriority(PRIORITY_MIN)
@@ -87,11 +90,22 @@ public class NetworkThreadCreator extends Service
 	@Override
 	public void onDestroy()
     {
-        MainActivity.writeToSave();
-        new SyncClient("disconnect", null).start();
-        Toast.makeText(AppDummy.getContext(), "ClipboardSync service stopped", Toast.LENGTH_SHORT).show();
-        super.onDestroy();
-    }
+		try
+		{
+			MainActivity.writeToSave();
+			new SyncClient("disconnect", null).start();
+			Toast.makeText(AppDummy.getContext(), "ClipboardSync service stopped", Toast.LENGTH_SHORT).show();
+			SocketHolder.getSocket().close();
+		}
+		catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+		finally
+		{
+			super.onDestroy();
+		}
+	}
 
     public SyncServer getServer()
     {

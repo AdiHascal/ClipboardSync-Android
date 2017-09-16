@@ -3,9 +3,7 @@ package com.adihascal.clipboardsync.handler;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
-import android.database.Cursor;
 import android.net.Uri;
-import android.provider.OpenableColumns;
 
 import com.adihascal.clipboardsync.tasks.MultiSendTask;
 import com.adihascal.clipboardsync.tasks.ReceiveTask;
@@ -23,50 +21,60 @@ public class IntentHandler implements IClipHandler
 	public void sendClip(ClipData clip) throws IOException
 	{
 		Intent intent = clip.getItemAt(0).getIntent();
-
-        //I'm looking at you, Discord 9gag and Twitter
+		
+		//I'm looking at you, Discord 9fag and Twitter
 		if(intent.getType() != null && intent.getType().equals("text/plain"))
 		{
 			new TextHandler().sendClip(clip);
 			return;
 		}
-	
-		if(intent.getAction().equals(Intent.ACTION_SEND))
+		
+		try
 		{
-			Uri u = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-			if(!intent.getType().equals("folder"))
+			if(intent.getAction().equals(Intent.ACTION_SEND))
 			{
-				Cursor cursor = AppDummy.getContext().getContentResolver().query(u, null, null, null, null);
-				int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
-				cursor.moveToFirst();
-				long length = cursor.getLong(sizeIndex);
-				cursor.close();
-				
-				if(length <= 15728640)
+				Uri u = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+				if(!intent.getType().equals("folder"))
 				{
-					new SendTask(u).exec();
+					long length = AppDummy.getContext().getContentResolver().openAssetFileDescriptor(u, "r").getLength();
+					
+					if(length <= 15728640)
+					{
+						TaskHandler.setAndRun(new SendTask(u));
+					}
+					else
+					{
+						TaskHandler.setAndRun(new MultiSendTask(Collections.singletonList(u)));
+					}
 				}
 				else
 				{
-					new MultiSendTask(Collections.singletonList(u)).exec();
+					TaskHandler.setAndRun(new MultiSendTask(Collections.singletonList(u)));
 				}
 			}
 			else
 			{
-				new MultiSendTask(Collections.singletonList(u)).exec();
+				List<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+				TaskHandler.setAndRun(new MultiSendTask(uris));
 			}
 		}
-        else
-        {
-			List<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
-			new MultiSendTask(uris).exec();
+		catch(Exception e)
+		{
+			e.printStackTrace();
 		}
 	}
 
     @Override
 	public void receiveClip(ClipboardManager manager) throws IOException
 	{
-		new ReceiveTask().exec();
-		new UnpackTask(AppDummy.getContext().getCacheDir().listFiles(), manager.getPrimaryClip().getItemAt(0).getIntent()).exec();
+		try
+		{
+			TaskHandler.setAndRun(new ReceiveTask());
+			TaskHandler.setAndRun(new UnpackTask(AppDummy.getContext().getCacheDir().listFiles(), manager.getPrimaryClip().getItemAt(0).getIntent()));
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
 	}
 }
