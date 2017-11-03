@@ -22,12 +22,13 @@ import static com.adihascal.clipboardsync.network.SocketHolder.in;
 import static com.adihascal.clipboardsync.network.SocketHolder.out;
 import static com.adihascal.clipboardsync.network.SocketHolder.terminate;
 
+@SuppressWarnings({"unused", "ConstantConditions"})
 public class SyncServer extends Thread
 {
 	
 	@Override
-	public void run()
-    {
+	public synchronized void run()
+	{
 		try
 		{
 			Looper.prepare();
@@ -35,27 +36,28 @@ public class SyncServer extends Thread
 			{
 				try
 				{
-					synchronized(this)
+					int seconds = 0;
+					if(!NetworkThreadCreator.isConnected)
 					{
-						int seconds = 0;
-						if(!NetworkThreadCreator.isConnected)
+						while(seconds < 10)
 						{
-							while(seconds < 10)
+							if(!NetworkThreadCreator.isConnected)
 							{
-								if(!NetworkThreadCreator.isConnected)
-								{
-									wait(1000);
-									seconds++;
-								}
+								wait(1000);
+								seconds++;
 							}
-						}
-						
-						if(!NetworkThreadCreator.isConnected)
-						{
-							throw new IOException("connection timeout");
 						}
 					}
 					
+					if(!NetworkThreadCreator.isConnected)
+					{
+						throw new IOException("connection timeout");
+					}
+					
+					while(NetworkThreadCreator.isBusy)
+					{
+						wait(1000);
+					}
 					String command = in().readUTF();
 					switch(command)
 					{
@@ -63,7 +65,6 @@ public class SyncServer extends Thread
 							NetworkThreadCreator.isBusy = true;
 							ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
 							ClipHandlerRegistry.getHandlerFor(in().readUTF()).receiveClip(manager);
-							NetworkThreadCreator.isBusy = false;
 							break;
 						case "disconnect":
 							AppDummy.getContext().stopService(new Intent(AppDummy.getContext(), NetworkThreadCreator.class));
@@ -72,7 +73,7 @@ public class SyncServer extends Thread
 							Intent acceptIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("accept");
 							Intent refuseIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("refuse");
 							acceptIntent.putExtra("files", in().readBoolean());
-							NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext())
+							NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
 									.setSmallIcon(R.drawable.ic_action_create)
 									.setContentText("remote data detected. tap to accept or swipe to ignore")
 									.setContentIntent
@@ -100,32 +101,31 @@ public class SyncServer extends Thread
 			e.printStackTrace();
 		}
 	}
-
-    @Override
-    public void interrupt()
-    {
+	
+	@Override
+	public void interrupt()
+	{
 		terminate();
 		super.interrupt();
 	}
 	
-	@SuppressWarnings("unused")
 	public static class WtfAndroid extends IntentService
 	{
-        public WtfAndroid(String name)
-        {
-            super(name);
-        }
-
-        public WtfAndroid()
-        {
-            super("wtf_android");
-        }
-
-        @Override
-        protected void onHandleIntent(@Nullable Intent intent)
-        {
-            try
-            {
+		public WtfAndroid(String name)
+		{
+			super(name);
+		}
+		
+		public WtfAndroid()
+		{
+			super("wtf_android");
+		}
+		
+		@Override
+		protected void onHandleIntent(@Nullable Intent intent)
+		{
+			try
+			{
 				switch(intent.getAction())
 				{
 					case "accept":
@@ -144,9 +144,9 @@ public class SyncServer extends Thread
 				}
 			}
 			catch(IOException e)
-            {
-                e.printStackTrace();
-            }
-        }
-    }
+			{
+				e.printStackTrace();
+			}
+		}
+	}
 }

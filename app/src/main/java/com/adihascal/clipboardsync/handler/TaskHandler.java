@@ -1,46 +1,54 @@
 package com.adihascal.clipboardsync.handler;
 
+import com.adihascal.clipboardsync.service.NetworkThreadCreator;
 import com.adihascal.clipboardsync.tasks.ITask;
 
 public class TaskHandler
 {
-	private static final TaskHandler INSTANCE = new TaskHandler();
-	private static ITask current;
+	public static final TaskHandler INSTANCE = new TaskHandler();
+	private Thread current;
 	
-	static void setAndRun(ITask task) throws Exception
-	{
-		set(task);
-		run();
-	}
-	
-	private static void set(ITask task) throws Exception
+	void setAndRun(ITask task)
 	{
 		if(current == null)
 		{
-			current = task;
-		}
-		else
-		{
-			throw new Exception("cannot set task while another one is already running");
+			set(task);
+			run();
 		}
 	}
 	
-	private static void run()
+	private void set(final ITask task)
 	{
-		current.execute();
+		if(current == null)
+		{
+			current = new Thread(new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					task.execute();
+				}
+			});
+		}
 	}
 	
-	public static ITask get()
+	private void run()
+	{
+		current.start();
+	}
+	
+	public Thread get()
 	{
 		return current;
 	}
 	
-	public static void pop()
+	public void pop()
 	{
 		current = null;
+		NetworkThreadCreator.isBusy = false;
 	}
 	
-	public static void pause() throws InterruptedException
+	public void pause() throws InterruptedException
 	{
 		synchronized(current)
 		{
@@ -48,11 +56,11 @@ public class TaskHandler
 		}
 	}
 	
-	public static void resume()
+	public void resume()
 	{
 		synchronized(current)
 		{
-			INSTANCE.notify();
+			current.notify();
 		}
 	}
 }

@@ -12,7 +12,7 @@ import static com.adihascal.clipboardsync.network.SocketHolder.out;
 
 public class TextHandler implements IClipHandler
 {
-    @Override
+	@Override
 	public void sendClip(ClipData clip) throws IOException
 	{
 		out().writeUTF("text/plain");
@@ -21,12 +21,12 @@ public class TextHandler implements IClipHandler
 			out().writeUTF((String) clip.getItemAt(0).getIntent().getClipData().getItemAt(0).getText());
 		}
 		else
-        {
+		{
 			out().writeUTF((String) clip.getItemAt(0).getText());
 		}
 	}
-
-    @Override
+	
+	@Override
 	public void receiveClip(ClipboardManager manager)
 	{
 		try

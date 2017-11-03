@@ -1,22 +1,32 @@
 package com.adihascal.clipboardsync.tasks;
 
 import android.app.NotificationManager;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.support.v4.app.NotificationCompat;
 
 import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.handler.TaskHandler;
 import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.util.DynamicSequenceInputStream;
+import com.adihascal.clipboardsync.util.IStreamSupplier;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.Locale;
 
+import static com.adihascal.clipboardsync.network.SocketHolder.getSocket;
 import static com.adihascal.clipboardsync.network.SocketHolder.in;
 import static com.adihascal.clipboardsync.network.SocketHolder.out;
 
-public class ReceiveTask implements ITask
+public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 {
 	private static final NotificationManager manager = (NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
 	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
@@ -27,18 +37,20 @@ public class ReceiveTask implements ITask
 	private long totalBytesWritten = 0L;
 	private long size = 0L;
 	private String sizeAsText;
+	private int nChunks;
+	private int currentChunk = 0;
 	
 	@SuppressWarnings("SpellCheckingInspection")
 	private String humanReadableByteCount(long bytes)
 	{
-		int unit = 1000;
+		final int unit = 1000;
 		if(bytes < unit)
 		{
 			return bytes + " B";
 		}
 		int exp = (int) (Math.log(bytes) / Math.log(unit));
 		String pre = String.valueOf("kMGTPE".charAt(exp - 1));
-		return String.format(Locale.ENGLISH, "%.3f %sB", bytes / Math.pow(unit, exp), pre);
+		return String.format(Locale.ENGLISH, "%.2f %sB", bytes / Math.pow(unit, exp), pre);
 	}
 	
 	private void getChunk(RandomAccessFile raf, long length)
@@ -53,9 +65,9 @@ public class ReceiveTask implements ITask
 			while(totalBytesRead < length)
 			{
 				bytesRead = in().read(buffer, 0, Math.min(chunkSize - totalBytesRead, buffer.length));
+				raf.write(buffer, 0, bytesRead);
 				totalBytesRead += bytesRead;
 				totalBytesWritten += bytesRead;
-				raf.write(buffer, 0, bytesRead);
 			}
 		}
 		catch(IOException e)
@@ -64,7 +76,7 @@ public class ReceiveTask implements ITask
 			try
 			{
 				System.out.println("network error. waiting.");
-				TaskHandler.pause();
+				TaskHandler.INSTANCE.pause();
 				out().writeLong(totalBytesRead);
 				raf.seek(totalBytesRead);
 				getChunk(raf, length);
@@ -77,15 +89,16 @@ public class ReceiveTask implements ITask
 	}
 	
 	@Override
-	public synchronized void execute()
+	public void execute()
 	{
 		try
 		{
 			size = in().readLong();
 			sizeAsText = humanReadableByteCount(size);
 			updater.exec();
-			int nChunks = (int) Math.ceil((double) size / chunkSize);
+			nChunks = (int) Math.ceil((double) size / chunkSize);
 			RandomAccessFile[] packedFiles = new RandomAccessFile[nChunks];
+			getSocket().setSoTimeout(5000);
 			
 			for(int i = 0; i < nChunks; i++)
 			{
@@ -94,6 +107,7 @@ public class ReceiveTask implements ITask
 				packedFiles[i] = new RandomAccessFile(p, "rw");
 			}
 			
+			new Thread(new Unpacker(this)).start();
 			for(int i = 0; i < packedFiles.length; i++)
 			{
 				RandomAccessFile raf = packedFiles[i];
@@ -108,8 +122,10 @@ public class ReceiveTask implements ITask
 				}
 				getChunk(raf, length);
 				raf.close();
+				currentChunk++;
 			}
 			updater.stop();
+			finish();
 		}
 		catch(IOException e)
 		{
@@ -120,7 +136,130 @@ public class ReceiveTask implements ITask
 	@Override
 	public void finish()
 	{
-		TaskHandler.pop();
+		TaskHandler.INSTANCE.pop();
+	}
+	
+	@Override
+	public InputStream next(int index)
+	{
+		try
+		{
+			return new FileInputStream(new File(AppDummy.getContext().getCacheDir(), Integer.toString(index) + ".bin"));
+		}
+		catch(FileNotFoundException e)
+		{
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	@Override
+	public boolean canProvide(int index)
+	{
+		return index < currentChunk;
+	}
+	
+	@Override
+	public void afterClose(int index)
+	{
+		new File(AppDummy.getContext().getCacheDir(), Integer.toString(index) + ".bin").delete();
+	}
+	
+	@Override
+	public long length(int index)
+	{
+		if(index == nChunks - 1 && size % chunkSize != 0)
+		{
+			return size % chunkSize;
+		}
+		else
+		{
+			return chunkSize;
+		}
+	}
+	
+	private static class Unpacker implements Runnable
+	{
+		private final String dest;
+		private final IStreamSupplier<InputStream> supplier;
+		private DynamicSequenceInputStream src;
+		
+		public Unpacker(IStreamSupplier<InputStream> supplier)
+		{
+			this.supplier = supplier;
+			ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+			assert manager != null;
+			Intent intent = manager.getPrimaryClip().getItemAt(0).getIntent();
+			this.dest = intent.getStringExtra("folder");
+			ClipData clip = intent.getClipData();
+			if(clip != null)
+			{
+				manager.setPrimaryClip(clip);
+			}
+		}
+		
+		private void read(String parent) throws IOException
+		{
+			File f;
+			String path = dest;
+			String thing = src.readUTF();
+			if(thing.equals("file"))
+			{
+				if(parent != null)
+				{
+					path = parent;
+				}
+				path += "/" + src.readUTF();
+				f = new File(path);
+				f.createNewFile();
+				byte[] buffer = new byte[15360];
+				int bytesRead;
+				int totalBytesRead = 0;
+				long length = src.readLong();
+				FileOutputStream output = new FileOutputStream(f);
+				while(totalBytesRead < length)
+				{
+					bytesRead = src.read(buffer, 0, (int) Math.min(length - totalBytesRead, 15360));
+					totalBytesRead += bytesRead;
+					output.write(buffer, 0, bytesRead);
+				}
+				output.close();
+			}
+			else
+			{
+				if(parent != null)
+				{
+					path = parent;
+				}
+				path += "/" + src.readUTF();
+				f = new File(path);
+				f.mkdir();
+				int nFiles = src.readInt();
+				for(int i = 0; i < nFiles; i++)
+				{
+					read(f.getPath());
+				}
+			}
+		}
+		
+		@Override
+		public void run()
+		{
+			try
+			{
+				this.src = new DynamicSequenceInputStream(this.supplier);
+				int nFiles = src.readInt();
+				for(int i = 0; i < nFiles; i++)
+				{
+					read(null);
+				}
+				this.src.close();
+			}
+			catch(IOException e)
+			{
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	private class NotificationUpdater implements Runnable

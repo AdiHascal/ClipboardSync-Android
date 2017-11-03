@@ -46,6 +46,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 	private long size;
 	private String sizeAsText;
 	private long totalBytesSent = 0L;
+	private int nChunks;
 	
 	public MultiSendTask(List<Uri> uList)
 	{
@@ -62,7 +63,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 		}
 		int exp = (int) (Math.log(bytes) / Math.log(unit));
 		String pre = String.valueOf("kMGTPE".charAt(exp - 1));
-		return String.format(Locale.ENGLISH, "%.3f %sB", bytes / Math.pow(unit, exp), pre);
+		return String.format(Locale.ENGLISH, "%.2f %sB", bytes / Math.pow(unit, exp), pre);
 	}
 	
 	private void addToList(File f)
@@ -101,26 +102,18 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 	
 	private long getObjectLength(Object o)
 	{
-		if(o instanceof String)
+		switch(o.getClass().getSimpleName())
 		{
-			return getUTFLength((String) o);
+			case "String":
+				return getUTFLength((String) o) + 2;
+			case "Integer":
+				return 4;
+			case "Long":
+				return 8;
+			case "File":
+				return ((File) o).length();
 		}
-		else if(o instanceof Long)
-		{
-			return 8;
-		}
-		else if(o instanceof Integer)
-		{
-			return 4;
-		}
-		else if(o instanceof File)
-		{
-			return ((File) o).length();
-		}
-		else
-		{
-			return 0;
-		}
+		throw new IllegalArgumentException("Invalid type");
 	}
 	
 	private int getUTFLength(String str)
@@ -155,9 +148,10 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 		{
 			FileInputStream in = new FileInputStream((File) o);
 			byte[] tempBuffer = new byte[chunkSize / 1024];
-			while(in.read(tempBuffer, 0, tempBuffer.length) != -1)
+			int bytesRead;
+			while((bytesRead = in.read(tempBuffer)) != -1)
 			{
-				stream.write(tempBuffer);
+				stream.write(tempBuffer, 0, bytesRead);
 			}
 		}
 	}
@@ -247,11 +241,11 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 	}
 	
 	@Override
-	public OutputStream next(int prevIndex)
+	public OutputStream next(int index)
 	{
 		try
 		{
-			return new FileOutputStream(binFiles.get(++prevIndex));
+			return new FileOutputStream(binFiles.get(index));
 		}
 		catch(FileNotFoundException e)
 		{
@@ -270,6 +264,19 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 	public void afterClose(int index)
 	{
 		afterClose(index, false);
+	}
+	
+	@Override
+	public long length(int index)
+	{
+		if(index == nChunks - 1 && size % chunkSize != 0)
+		{
+			return size % chunkSize;
+		}
+		else
+		{
+			return chunkSize;
+		}
 	}
 	
 	private void afterClose(int index, boolean recursive)
@@ -291,6 +298,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 			while((bytesRead = input.read(buffer)) != -1)
 			{
 				out().write(buffer, 0, bytesRead);
+				in().read();
 				totalBytesSent += bytesRead;
 			}
 			input.close();
@@ -300,18 +308,16 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 		{
 			try
 			{
-				wait(30000);
+				updater.stop();
+				TaskHandler.INSTANCE.pause();
 				if(NetworkChangeReceiver.INSTANCE.checkConnection(AppDummy.getContext()))
 				{
+					updater.exec();
 					afterClose(index, true);
 					e.printStackTrace();
 				}
-				else
-				{
-					throw new IOException("timeout");
-				}
 			}
-			catch(InterruptedException | IOException e1)
+			catch(InterruptedException e1)
 			{
 				e1.printStackTrace();
 			}
@@ -319,7 +325,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 	}
 	
 	@Override
-	public synchronized void execute()
+	public void execute()
 	{
 		try
 		{
@@ -342,7 +348,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 			}
 			sizeAsText = humanReadableByteCount(size);
 			
-			int nChunks = (int) Math.ceil((double) size / chunkSize);
+			nChunks = (int) Math.ceil((double) size / chunkSize);
 			
 			binFiles = new ArrayList<>(files.size());
 			for(int i = 0; i < nChunks; i++)
@@ -363,8 +369,10 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 			{
 				writeObject(o);
 			}
+			stream.close();
 			updater.stop();
 			manager.cancel(12);
+			finish();
 		}
 		catch(IOException e)
 		{
@@ -375,7 +383,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 	@Override
 	public void finish()
 	{
-		TaskHandler.pop();
+		TaskHandler.INSTANCE.pop();
 	}
 	
 	private class NotificationUpdater implements Runnable
@@ -403,6 +411,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 		
 		private void exec()
 		{
+			run = true;
 			new Thread(this).start();
 		}
 		

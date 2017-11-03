@@ -3,12 +3,12 @@ package com.adihascal.clipboardsync.handler;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
+import android.content.res.AssetFileDescriptor;
 import android.net.Uri;
 
 import com.adihascal.clipboardsync.tasks.MultiSendTask;
 import com.adihascal.clipboardsync.tasks.ReceiveTask;
 import com.adihascal.clipboardsync.tasks.SendTask;
-import com.adihascal.clipboardsync.tasks.UnpackTask;
 import com.adihascal.clipboardsync.ui.AppDummy;
 
 import java.io.IOException;
@@ -17,7 +17,7 @@ import java.util.List;
 
 public class IntentHandler implements IClipHandler
 {
-    @Override
+	@Override
 	public void sendClip(ClipData clip) throws IOException
 	{
 		Intent intent = clip.getItemAt(0).getIntent();
@@ -36,26 +36,28 @@ public class IntentHandler implements IClipHandler
 				Uri u = intent.getParcelableExtra(Intent.EXTRA_STREAM);
 				if(!intent.getType().equals("folder"))
 				{
-					long length = AppDummy.getContext().getContentResolver().openAssetFileDescriptor(u, "r").getLength();
+					AssetFileDescriptor fd = AppDummy.getContext().getContentResolver().openAssetFileDescriptor(u, "r");
+					long length = fd.getLength();
+					fd.close();
 					
 					if(length <= 15728640)
 					{
-						TaskHandler.setAndRun(new SendTask(u));
+						TaskHandler.INSTANCE.setAndRun(new SendTask(u));
 					}
 					else
 					{
-						TaskHandler.setAndRun(new MultiSendTask(Collections.singletonList(u)));
+						TaskHandler.INSTANCE.setAndRun(new MultiSendTask(Collections.singletonList(u)));
 					}
 				}
 				else
 				{
-					TaskHandler.setAndRun(new MultiSendTask(Collections.singletonList(u)));
+					TaskHandler.INSTANCE.setAndRun(new MultiSendTask(Collections.singletonList(u)));
 				}
 			}
 			else
 			{
 				List<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
-				TaskHandler.setAndRun(new MultiSendTask(uris));
+				TaskHandler.INSTANCE.setAndRun(new MultiSendTask(uris));
 			}
 		}
 		catch(Exception e)
@@ -63,18 +65,10 @@ public class IntentHandler implements IClipHandler
 			e.printStackTrace();
 		}
 	}
-
-    @Override
+	
+	@Override
 	public void receiveClip(ClipboardManager manager) throws IOException
 	{
-		try
-		{
-			TaskHandler.setAndRun(new ReceiveTask());
-			TaskHandler.setAndRun(new UnpackTask(AppDummy.getContext().getCacheDir().listFiles(), manager.getPrimaryClip().getItemAt(0).getIntent()));
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-		}
+		TaskHandler.INSTANCE.setAndRun(new ReceiveTask());
 	}
 }

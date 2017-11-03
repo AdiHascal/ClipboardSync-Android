@@ -14,17 +14,17 @@ public class SocketHolder
 	public static DataInputStream in()
 	{
 		return socketIn;
-    }
+	}
 	
 	public static DataOutputStream out()
 	{
 		return socketOut;
-    }
+	}
 	
 	public static Socket getSocket()
 	{
 		return socket;
-    }
+	}
 	
 	public static void setSocket(Socket socket)
 	{
@@ -63,5 +63,20 @@ public class SocketHolder
 	public static boolean valid()
 	{
 		return socket != null && !socket.isClosed();
+	}
+	
+	public static void invalidate()
+	{
+		if(socket != null)
+		{
+			try
+			{
+				socket.close();
+			}
+			catch(IOException e)
+			{
+				e.printStackTrace();
+			}
+		}
 	}
 }

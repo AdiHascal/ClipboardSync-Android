@@ -6,18 +6,17 @@ import java.io.BufferedInputStream;
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.EOFException;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 public class DynamicSequenceInputStream extends InputStream implements DataInput
 {
-	private final IStreamSupplier supplier;
+	private final IStreamSupplier<InputStream> supplier;
 	private InputStream in;
 	private int pos, count;
-	private int streamIndex = -1;
+	private int streamIndex = 0;
 	
-	public DynamicSequenceInputStream(IStreamSupplier supp)
+	public DynamicSequenceInputStream(IStreamSupplier<InputStream> supp)
 	{
 		this.supplier = supp;
 		next(false);
@@ -30,19 +29,19 @@ public class DynamicSequenceInputStream extends InputStream implements DataInput
 			if(in != null)
 			{
 				in.close();
-				supplier.afterClose(streamIndex);
+				supplier.afterClose(streamIndex - 1);
 			}
 			
 			if(!close)
 			{
 				while(true)
 				{
-					if(supplier.canProvide(streamIndex + 1))
+					if(supplier.canProvide(streamIndex))
 					{
-						FileInputStream fIn = (FileInputStream) supplier.next(streamIndex++);
+						InputStream next = supplier.next(streamIndex);
 						pos = 0;
-						count = fIn.available();
-						in = new BufferedInputStream(fIn, 15360);
+						count = (int) supplier.length(streamIndex++);
+						in = new BufferedInputStream(next, 15360);
 						break;
 					}
 				}

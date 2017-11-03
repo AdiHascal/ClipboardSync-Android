@@ -32,7 +32,7 @@ public class SendTask implements ITask
 			cursor.moveToFirst();
 			
 			out().writeUTF("fucking retards");
-			out().writeLong(cursor.getLong(sizeIndex));
+			out().writeLong(cursor.getLong(sizeIndex) + 8 + getUTFLength(cursor.getString(nameIndex)));
 			out().writeInt(1);
 			out().writeUTF("file");
 			out().writeUTF(cursor.getString(nameIndex));
@@ -59,6 +59,28 @@ public class SendTask implements ITask
 	@Override
 	public void finish()
 	{
-		TaskHandler.pop();
+		TaskHandler.INSTANCE.pop();
+	}
+	
+	private int getUTFLength(String str)
+	{
+		int len = 0;
+		
+		for(char c : str.toCharArray())
+		{
+			if((c >= 0x0001) && (c <= 0x007F))
+			{
+				len++;
+			}
+			else if(c > 0x07FF)
+			{
+				len += 3;
+			}
+			else
+			{
+				len += 2;
+			}
+		}
+		return len;
 	}
 }

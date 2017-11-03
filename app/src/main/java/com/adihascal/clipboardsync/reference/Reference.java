@@ -4,9 +4,9 @@ import java.io.File;
 
 public final class Reference
 {
-    public static final String ORIGIN = "com.adihascal.clipboardsync.extra.ORIGIN";
-    public static String defaultDeviceName = "N/A";
-    public static String deviceName = defaultDeviceName;
-    public static String currentDeviceAddress = "";
-    public static File savedData;
+	public static final String ORIGIN = "com.adihascal.clipboardsync.extra.ORIGIN";
+	public static String defaultDeviceName = "N/A";
+	public static String deviceName = defaultDeviceName;
+	public static String currentDeviceAddress = "";
+	public static File savedData;
 }

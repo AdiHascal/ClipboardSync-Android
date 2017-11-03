@@ -13,7 +13,6 @@ import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.handler.TaskHandler;
 import com.adihascal.clipboardsync.service.NetworkThreadCreator;
 import com.adihascal.clipboardsync.ui.AppDummy;
-import com.adihascal.clipboardsync.ui.MainActivity;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -31,7 +30,7 @@ public class NetworkChangeReceiver extends BroadcastReceiver
 	private boolean needNewSocket = false;
 	
 	@Override
-	public void onReceive(final Context context, Intent intent)
+	public synchronized void onReceive(final Context context, Intent intent)
 	{
 		boolean prev = NetworkThreadCreator.isConnected;
 		final boolean now = checkConnection(context);
@@ -49,11 +48,8 @@ public class NetworkChangeReceiver extends BroadcastReceiver
 						if(needNewSocket)
 						{
 							SocketHolder.setSocket(new Socket(SyncClient.address, 63708));
+							new SyncClient("resume_transfer", null).start();
 							needNewSocket = false;
-							if(TaskHandler.get() != null)
-							{
-								((NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE)).notify(12, notification);
-							}
 						}
 					}
 					catch(IOException e)
@@ -63,7 +59,7 @@ public class NetworkChangeReceiver extends BroadcastReceiver
 				}
 			}).start();
 			NetworkThreadCreator.isConnected = true;
-			MainActivity.reconnect();
+			//MainActivity.reconnect();
 		}
 		else if(prev && !now)
 		{
@@ -72,6 +68,10 @@ public class NetworkChangeReceiver extends BroadcastReceiver
 				NetworkThreadCreator.isConnected = false;
 				SocketHolder.getSocket().close();
 				needNewSocket = true;
+				if(TaskHandler.INSTANCE.get() != null)
+				{
+					((NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE)).notify(12, notification);
+				}
 			}
 			catch(IOException e)
 			{

@@ -4,9 +4,11 @@ import java.io.Closeable;
 
 public interface IStreamSupplier<T extends Closeable>
 {
-	T next(int prevIndex);
+	T next(int index);
 	
 	boolean canProvide(int index);
 	
 	void afterClose(int index);
+	
+	long length(int index);
 }

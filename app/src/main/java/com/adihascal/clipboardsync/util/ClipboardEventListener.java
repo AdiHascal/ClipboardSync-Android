@@ -15,18 +15,19 @@ import static com.adihascal.clipboardsync.service.NetworkThreadCreator.paused;
 public class ClipboardEventListener implements ClipboardManager.OnPrimaryClipChangedListener
 {
 	public static final ClipboardEventListener INSTANCE = new ClipboardEventListener();
-
-    @Override
-    public void onPrimaryClipChanged()
-    {
+	
+	@Override
+	public void onPrimaryClipChanged()
+	{
 		if(!isBusy && !paused && isConnected)
 		{
+			isBusy = true;
 			ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = manager.getPrimaryClip();
-            if((clip.getDescription().getLabel() == null || !clip.getDescription().getLabel().equals(Reference.ORIGIN)))
-            {
-                new SyncClient("send", clip).start();
-            }
-        }
-    }
+			ClipData clip = manager.getPrimaryClip();
+			if((clip.getDescription().getLabel() == null || !clip.getDescription().getLabel().equals(Reference.ORIGIN)))
+			{
+				new SyncClient("send", clip).start();
+			}
+		}
+	}
 }
