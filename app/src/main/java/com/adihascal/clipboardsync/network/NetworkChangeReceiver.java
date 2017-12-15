@@ -22,7 +22,7 @@ import static android.net.ConnectivityManager.TYPE_WIFI;
 public class NetworkChangeReceiver extends BroadcastReceiver
 {
 	public static final NetworkChangeReceiver INSTANCE = new NetworkChangeReceiver();
-	private final Notification notification = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
+	private final Notification notification = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncTransfer")
 			.setContentTitle("connection interrupted")
 			.setSmallIcon(R.drawable.ic_error_black_24dp)
 			.setProgress(0, 0, true).build();
@@ -59,7 +59,6 @@ public class NetworkChangeReceiver extends BroadcastReceiver
 				}
 			}).start();
 			NetworkThreadCreator.isConnected = true;
-			//MainActivity.reconnect();
 		}
 		else if(prev && !now)
 		{

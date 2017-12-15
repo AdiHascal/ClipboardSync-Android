@@ -6,9 +6,10 @@ import android.provider.OpenableColumns;
 
 import com.adihascal.clipboardsync.handler.TaskHandler;
 import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.util.UriUtils;
 
+import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 
 import static com.adihascal.clipboardsync.network.SocketHolder.out;
 
@@ -26,34 +27,67 @@ public class SendTask implements ITask
 	{
 		try
 		{
-			Cursor cursor = AppDummy.getContext().getContentResolver().query(contentUri, new String[]{OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE}, null, null, null);
-			int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-			int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
-			cursor.moveToFirst();
-			
-			out().writeUTF("fucking retards");
-			out().writeLong(cursor.getLong(sizeIndex) + 8 + getUTFLength(cursor.getString(nameIndex)));
-			out().writeInt(1);
-			out().writeUTF("file");
-			out().writeUTF(cursor.getString(nameIndex));
-			out().writeLong(cursor.getLong(sizeIndex));
-			cursor.close();
-			
-			
-			FileInputStream fileIn = (FileInputStream) AppDummy.getContext().getContentResolver().openInputStream(contentUri);
-			byte[] buffer = new byte[65536];
-			int bytesRead;
-			while((bytesRead = fileIn.read(buffer)) != -1)
+			sendAsFile();
+		}
+		catch(Exception e)
+		{
+			try
 			{
-				out().write(buffer, 0, bytesRead);
+				sendAsUri();
 			}
-			fileIn.close();
+			catch(Exception e1)
+			{
+				e1.printStackTrace();
+			}
+		}
+		finally
+		{
 			finish();
 		}
-		catch(IOException e)
+	}
+	
+	private void sendAsFile() throws Exception
+	{
+		File f = new File(UriUtils.getPath(AppDummy.getContext(), contentUri));
+		out().writeUTF("fucking retards");
+		out().writeLong(14 + getUTFLength(f.getName()) + f.length());
+		out().writeInt(1);
+		out().writeUTF("file");
+		out().writeUTF(f.getName());
+		out().writeLong(f.length());
+		
+		FileInputStream fileIn = new FileInputStream(f);
+		byte[] buffer = new byte[15360];
+		int bytesRead;
+		while((bytesRead = fileIn.read(buffer)) != -1)
 		{
-			e.printStackTrace();
+			out().write(buffer, 0, bytesRead);
 		}
+		fileIn.close();
+	}
+	
+	private void sendAsUri() throws Exception
+	{
+		Cursor cursor = AppDummy.getContext().getContentResolver().query(contentUri, new String[]{OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE}, null, null, null);
+		int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+		int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
+		cursor.moveToFirst();
+		int fileSize = (int) cursor.getLong(sizeIndex);
+		String fileName = cursor.getString(nameIndex);
+		cursor.close();
+		
+		out().writeUTF("fucking retards");
+		out().writeLong(14 + getUTFLength(fileName) + fileSize);
+		out().writeInt(1);
+		out().writeUTF("file");
+		out().writeUTF(fileName);
+		out().writeLong(fileSize);
+		
+		FileInputStream fileIn = (FileInputStream) AppDummy.getContext().getContentResolver().openInputStream(contentUri);
+		byte[] buffer = new byte[fileSize];
+		fileIn.read(buffer, 0, buffer.length);
+		out().write(buffer, 0, buffer.length);
+		fileIn.close();
 	}
 	
 	@Override

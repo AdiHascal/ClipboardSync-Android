@@ -9,6 +9,7 @@ import android.support.v4.app.NotificationCompat;
 
 import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.handler.TaskHandler;
+import com.adihascal.clipboardsync.network.SocketHolder;
 import com.adihascal.clipboardsync.ui.AppDummy;
 import com.adihascal.clipboardsync.util.DynamicSequenceInputStream;
 import com.adihascal.clipboardsync.util.IStreamSupplier;
@@ -20,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.net.SocketException;
 import java.util.Locale;
 
 import static com.adihascal.clipboardsync.network.SocketHolder.getSocket;
@@ -29,9 +31,10 @@ import static com.adihascal.clipboardsync.network.SocketHolder.out;
 public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 {
 	private static final NotificationManager manager = (NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
+	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncTransfer")
 			.setContentTitle("downloading")
-			.setSmallIcon(R.drawable.ic_file_download_black_24dp);
+			.setSmallIcon(R.drawable.ic_file_download_black_24dp)
+			.setSound(null);
 	private static final int chunkSize = 15728640;
 	private final NotificationUpdater updater = new NotificationUpdater();
 	private long totalBytesWritten = 0L;
@@ -59,12 +62,11 @@ public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 		
 		try
 		{
-			byte[] buffer = new byte[15360];
+			byte[] buffer = new byte[chunkSize / 1024];
 			int bytesRead;
 			totalBytesRead = (int) raf.getFilePointer();
-			while(totalBytesRead < length)
+			while(totalBytesRead < length && (bytesRead = in().read(buffer, 0, Math.min(chunkSize - totalBytesRead, buffer.length))) != -1)
 			{
-				bytesRead = in().read(buffer, 0, Math.min(chunkSize - totalBytesRead, buffer.length));
 				raf.write(buffer, 0, bytesRead);
 				totalBytesRead += bytesRead;
 				totalBytesWritten += bytesRead;
@@ -72,9 +74,9 @@ public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 		}
 		catch(IOException e)
 		{
-			e.printStackTrace();
 			try
 			{
+				e.printStackTrace();
 				System.out.println("network error. waiting.");
 				TaskHandler.INSTANCE.pause();
 				out().writeLong(totalBytesRead);
@@ -97,31 +99,18 @@ public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 			sizeAsText = humanReadableByteCount(size);
 			updater.exec();
 			nChunks = (int) Math.ceil((double) size / chunkSize);
-			RandomAccessFile[] packedFiles = new RandomAccessFile[nChunks];
 			getSocket().setSoTimeout(5000);
+			new Thread(new Unpacker(this)).start();
 			
 			for(int i = 0; i < nChunks; i++)
 			{
-				File p = new File(AppDummy.getContext().getCacheDir(), Integer.toString(i) + ".bin");
-				p.createNewFile();
-				packedFiles[i] = new RandomAccessFile(p, "rw");
-			}
-			
-			new Thread(new Unpacker(this)).start();
-			for(int i = 0; i < packedFiles.length; i++)
-			{
-				RandomAccessFile raf = packedFiles[i];
-				long length;
-				if(i == packedFiles.length - 1 && size % chunkSize != 0)
-				{
-					length = size % chunkSize;
-				}
-				else
-				{
-					length = chunkSize;
-				}
-				getChunk(raf, length);
+				File f = new File(AppDummy.getContext().getCacheDir(), Integer.toString(i) + ".bin");
+				f.createNewFile();
+				RandomAccessFile raf = new RandomAccessFile(f, "rw");
+				System.out.println("receiving chunk " + i);
+				getChunk(raf, length(i));
 				raf.close();
+				System.out.println("incrementing currentChunk to " + (currentChunk + 1));
 				currentChunk++;
 			}
 			updater.stop();
@@ -136,7 +125,15 @@ public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 	@Override
 	public void finish()
 	{
-		TaskHandler.INSTANCE.pop();
+		try
+		{
+			SocketHolder.getSocket().setSoTimeout(0);
+			TaskHandler.INSTANCE.pop();
+		}
+		catch(SocketException e)
+		{
+			e.printStackTrace();
+		}
 	}
 	
 	@Override

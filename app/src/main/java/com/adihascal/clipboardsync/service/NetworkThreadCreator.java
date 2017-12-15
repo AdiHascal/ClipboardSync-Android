@@ -1,12 +1,16 @@
 package com.adihascal.clipboardsync.service;
 
 import android.app.IntentService;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.os.Build;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
@@ -32,6 +36,18 @@ public class NetworkThreadCreator extends Service
 	private static final PendingIntent openMainIntent = PendingIntent.getActivity(AppDummy.getContext(), 1, new Intent().setClass(AppDummy.getContext(), MainActivity.class), 0);
 	private static final PendingIntent pauseIntent = PendingIntent.getService(AppDummy.getContext(), 2, new Intent().setAction("pause").setClass(AppDummy.getContext(), WtfAndroid2.class), 0);
 	private static final PendingIntent resumeIntent = PendingIntent.getService(AppDummy.getContext(), 2, new Intent().setAction("resume").setClass(AppDummy.getContext(), WtfAndroid2.class), 0);
+	private static final Notification notificationNormal = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncService")
+			.setSmallIcon(R.mipmap.ic_launcher)
+			.setContentTitle("ClipboardSync is running")
+			.setContentIntent(openMainIntent)
+			.setPriority(PRIORITY_MIN)
+			.addAction(R.drawable.ic_play_arrow_black_24dp, "pause", pauseIntent).build();
+	private static final Notification notificationPaused = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncService")
+			.setSmallIcon(R.mipmap.ic_launcher)
+			.setContentTitle("ClipboardSync is running")
+			.setContentIntent(openMainIntent)
+			.setPriority(PRIORITY_MIN)
+			.addAction(R.drawable.ic_pause_black_24dp, "resume", resumeIntent).build();
 	public volatile static boolean paused = false, isConnected, isBusy = false;
 	private SyncServer server = new SyncServer();
 	
@@ -46,6 +62,12 @@ public class NetworkThreadCreator extends Service
 	{
 		if(!NetworkChangeReceiver.INSTANCE.init)
 		{
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+			{
+				NotificationManager manager = ((NotificationManager) AppDummy.getContext().getSystemService(NOTIFICATION_SERVICE));
+				manager.createNotificationChannel(new NotificationChannel("CSyncService", "ClipboardSync Service", NotificationManager.IMPORTANCE_MIN));
+				manager.createNotificationChannel(new NotificationChannel("CSyncTransfer", "ClipboardSync Data Transfers", NotificationManager.IMPORTANCE_DEFAULT));
+			}
 			AppDummy.getContext().registerReceiver(NetworkChangeReceiver.INSTANCE, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
 			NetworkChangeReceiver.INSTANCE.init = true;
 		}
@@ -55,27 +77,21 @@ public class NetworkThreadCreator extends Service
 		{
 			if(intent.getAction().equals("refreshNotification"))
 			{
-				NotificationCompat.Builder notification = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
-						.setSmallIcon(R.mipmap.ic_launcher)
-						.setContentTitle("ClipboardSync is running")
-						.setContentIntent(openMainIntent)
-						.setPriority(PRIORITY_MIN)
-						.addAction(paused ? R.drawable.ic_pause_black_24dp : R.drawable.ic_play_arrow_black_24dp, paused ? "resume" : "pause", paused ? resumeIntent : pauseIntent);
-				startForeground(3, notification.build());
+				if(paused)
+				{
+					startForeground(3, notificationPaused);
+				}
+				else
+				{
+					startForeground(3, notificationNormal);
+				}
 			}
 			else
 			{
 				String address = intent.getStringExtra("device_address");
 				if(address != null)
 				{
-					NotificationCompat.Builder notification = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
-							.setSmallIcon(R.mipmap.ic_launcher)
-							.setContentTitle("ClipboardSync is running")
-							.setContentIntent(openMainIntent)
-							.setPriority(PRIORITY_MIN)
-							.addAction(R.drawable.ic_play_arrow_black_24dp, "pause", pauseIntent);
-					startForeground(3, notification.build());
-					
+					startForeground(3, notificationNormal);
 					SyncClient.address = address;
 					SyncClient.init = false;
 					((ClipboardManager) AppDummy.getContext().getSystemService(CLIPBOARD_SERVICE)).addPrimaryClipChangedListener(ClipboardEventListener.INSTANCE);
@@ -84,7 +100,7 @@ public class NetworkThreadCreator extends Service
 				}
 			}
 		}
-		return START_STICKY_COMPATIBILITY;
+		return super.onStartCommand(intent, flags, startId);
 	}
 	
 	@Override
@@ -99,6 +115,7 @@ public class NetworkThreadCreator extends Service
 			{
 				SocketHolder.getSocket().close();
 			}
+			stopForeground(true);
 		}
 		catch(IOException e)
 		{

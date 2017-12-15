@@ -26,17 +26,17 @@ public class SocketHolder
 		return socket;
 	}
 	
-	public static void setSocket(Socket socket)
+	public static void setSocket(Socket sock)
 	{
 		try
 		{
-			if(getSocket() != null && !getSocket().isClosed())
+			if(socket != null && !socket.isClosed())
 			{
-				getSocket().close();
+				socket.close();
 			}
-			SocketHolder.socket = socket;
-			socketIn = new DataInputStream(socket.getInputStream());
-			socketOut = new DataOutputStream(socket.getOutputStream());
+			SocketHolder.socket = sock;
+			socketIn = new DataInputStream(sock.getInputStream());
+			socketOut = new DataOutputStream(sock.getOutputStream());
 		}
 		catch(IOException e)
 		{
@@ -63,20 +63,5 @@ public class SocketHolder
 	public static boolean valid()
 	{
 		return socket != null && !socket.isClosed();
-	}
-	
-	public static void invalidate()
-	{
-		if(socket != null)
-		{
-			try
-			{
-				socket.close();
-			}
-			catch(IOException e)
-			{
-				e.printStackTrace();
-			}
-		}
 	}
 }

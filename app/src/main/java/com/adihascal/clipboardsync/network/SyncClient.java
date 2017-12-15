@@ -3,6 +3,7 @@ package com.adihascal.clipboardsync.network;
 import android.content.ClipData;
 import android.net.wifi.WifiManager;
 import android.os.Looper;
+import android.provider.Settings;
 
 import com.adihascal.clipboardsync.handler.ClipHandlerRegistry;
 import com.adihascal.clipboardsync.handler.TaskHandler;
@@ -66,6 +67,7 @@ public class SyncClient extends Thread
 				case "connect":
 					out().writeUTF("connect");
 					out().writeUTF(getIPAddress());
+					out().writeUTF(Settings.Secure.getString(AppDummy.getContext().getContentResolver(), "bluetooth_name"));
 					break;
 				case "disconnect":
 					out().writeUTF(this.command);
@@ -79,7 +81,10 @@ public class SyncClient extends Thread
 					break;
 				case "resume_transfer":
 					out().writeUTF(command);
-					TaskHandler.INSTANCE.resume();
+					if(NetworkThreadCreator.isBusy)
+					{
+						TaskHandler.INSTANCE.resume();
+					}
 					break;
 			}
 		}

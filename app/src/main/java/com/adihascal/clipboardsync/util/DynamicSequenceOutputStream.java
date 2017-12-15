@@ -8,12 +8,13 @@ public class DynamicSequenceOutputStream extends OutputStream
 {
 	private final IStreamSupplier<OutputStream> supplier;
 	private int streamIndex = 0;
-	private int count, pos;
+	private int count, pos, written;
 	private OutputStream out;
 	
 	public DynamicSequenceOutputStream(IStreamSupplier<OutputStream> supp)
 	{
 		this.supplier = supp;
+		next(false);
 	}
 	
 	@Override
@@ -23,12 +24,13 @@ public class DynamicSequenceOutputStream extends OutputStream
 		{
 			out.write(b);
 			pos++;
+			written++;
 		}
 		else
 		{
+			System.out.println(written + " bytes written to stream " + (streamIndex - 1));
 			next(false);
-			out.write(b);
-			pos++;
+			write(b);
 		}
 	}
 	
@@ -45,6 +47,7 @@ public class DynamicSequenceOutputStream extends OutputStream
 			if(!close)
 			{
 				OutputStream next = supplier.next(streamIndex);
+				written = 0;
 				pos = 0;
 				count = (int) supplier.length(streamIndex++);
 				out = new BufferedOutputStream(next, 61440);
@@ -61,6 +64,7 @@ public class DynamicSequenceOutputStream extends OutputStream
 	{
 		if(out != null)
 		{
+			System.out.println(written + " bytes written to stream " + (streamIndex - 1));
 			next(true);
 		}
 	}

@@ -13,7 +13,6 @@ public class DynamicSequenceInputStream extends InputStream implements DataInput
 {
 	private final IStreamSupplier<InputStream> supplier;
 	private InputStream in;
-	private int pos, count;
 	private int streamIndex = 0;
 	
 	public DynamicSequenceInputStream(IStreamSupplier<InputStream> supp)
@@ -38,9 +37,7 @@ public class DynamicSequenceInputStream extends InputStream implements DataInput
 				{
 					if(supplier.canProvide(streamIndex))
 					{
-						InputStream next = supplier.next(streamIndex);
-						pos = 0;
-						count = (int) supplier.length(streamIndex++);
+						InputStream next = supplier.next(streamIndex++);
 						in = new BufferedInputStream(next, 15360);
 						break;
 					}
@@ -61,17 +58,13 @@ public class DynamicSequenceInputStream extends InputStream implements DataInput
 	
 	public int read() throws IOException
 	{
-		if(pos < count)
-		{
-			pos++;
-			return in.read();
-		}
-		else
+		int i = in.read();
+		if(i == -1)
 		{
 			next(false);
-			pos++;
-			return in.read();
+			return read();
 		}
+		return i;
 	}
 	
 	public int read(@NonNull byte[] b, int off, int len) throws IOException
@@ -112,12 +105,6 @@ public class DynamicSequenceInputStream extends InputStream implements DataInput
 	}
 	
 	@Override
-	public int available() throws IOException
-	{
-		return count - pos;
-	}
-	
-	@Override
 	public void close() throws IOException
 	{
 		if(in != null)
@@ -152,7 +139,6 @@ public class DynamicSequenceInputStream extends InputStream implements DataInput
 			total += cur;
 		}
 		
-		pos += total;
 		return total;
 	}
 	

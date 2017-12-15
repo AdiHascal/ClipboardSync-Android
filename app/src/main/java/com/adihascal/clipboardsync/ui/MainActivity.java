@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
@@ -46,7 +47,7 @@ public class MainActivity extends AppCompatActivity
 	{
 		try
 		{
-			if(Reference.currentDeviceAddress.split(".").length == 4 && !Reference.currentDeviceAddress.equals("0.0.0.0"))
+			if(Reference.currentDeviceAddress.split("\\.").length == 4 && !Reference.currentDeviceAddress.equals("0.0.0.0"))
 			{
 				DataOutputStream fout = new DataOutputStream(new FileOutputStream(savedData));
 				String s = Reference.currentDeviceAddress + "," + Reference.deviceName;
@@ -84,14 +85,6 @@ public class MainActivity extends AppCompatActivity
 		}
 	}
 	
-	public static void reconnect()
-	{
-		readFromSave();
-		Intent intent = new Intent(NetworkThreadCreator.ACTION_CONNECT, null, AppDummy.getContext(), NetworkThreadCreator.class);
-		intent.putExtra("device_address", Reference.currentDeviceAddress);
-		AppDummy.getContext().startService(intent);
-	}
-	
 	@Override
 	public void onBackPressed()
 	{
@@ -127,7 +120,6 @@ public class MainActivity extends AppCompatActivity
 	
 	private void requestPermissions()
 	{
-		
 		if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
 				ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
 				ContextCompat.checkSelfPermission(this, Manifest.permission.MANAGE_DOCUMENTS) != PackageManager.PERMISSION_GRANTED ||
@@ -173,7 +165,14 @@ public class MainActivity extends AppCompatActivity
 			Intent intent = new Intent(NetworkThreadCreator.ACTION_RECONNECT, null, this, NetworkThreadCreator.class);
 			setDeviceIPTextView(Reference.deviceName);
 			intent.putExtra("device_address", Reference.currentDeviceAddress);
-			startService(intent);
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+			{
+				startForegroundService(intent);
+			}
+			else
+			{
+				startService(intent);
+			}
 		}
 	}
 	
@@ -181,7 +180,14 @@ public class MainActivity extends AppCompatActivity
 	{
 		Intent intent = new Intent(NetworkThreadCreator.ACTION_CONNECT, null, this, NetworkThreadCreator.class);
 		intent.putExtra("device_address", address);
-		startService(intent);
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+		{
+			startForegroundService(intent);
+		}
+		else
+		{
+			startService(intent);
+		}
 		if(NetworkThreadCreator.isConnected)
 		{
 			setDeviceIPTextView(Reference.deviceName);

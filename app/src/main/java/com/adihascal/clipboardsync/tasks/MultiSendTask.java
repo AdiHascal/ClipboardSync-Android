@@ -7,7 +7,6 @@ import android.support.v4.app.NotificationCompat;
 
 import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.handler.TaskHandler;
-import com.adihascal.clipboardsync.network.NetworkChangeReceiver;
 import com.adihascal.clipboardsync.ui.AppDummy;
 import com.adihascal.clipboardsync.util.DynamicSequenceOutputStream;
 import com.adihascal.clipboardsync.util.IStreamSupplier;
@@ -32,9 +31,11 @@ import static com.adihascal.clipboardsync.network.SocketHolder.out;
 public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 {
 	private static final NotificationManager manager = (NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
+	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncTransfer")
 			.setContentTitle("uploading")
-			.setSmallIcon(R.drawable.ic_file_upload_black_24dp);
+			.setContentText("")
+			.setSmallIcon(R.drawable.ic_file_upload_black_24dp)
+			.setSound(null);
 	private static final File dataDir = AppDummy.getContext().getCacheDir();
 	private static final int chunkSize = 15728640;
 	private final NotificationUpdater updater = new NotificationUpdater();
@@ -43,7 +44,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 	private List<Object> objectsToSend = new LinkedList<>();
 	private DynamicSequenceOutputStream stream;
 	private int currentChunk = 0;
-	private long size;
+	private long size = 4L; //accounting for files.size()
 	private String sizeAsText;
 	private long totalBytesSent = 0L;
 	private int nChunks;
@@ -105,7 +106,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 		switch(o.getClass().getSimpleName())
 		{
 			case "String":
-				return getUTFLength((String) o) + 2;
+				return getUTFLength((String) o) + 2; //for the 2 null terminators
 			case "Integer":
 				return 4;
 			case "Long":
@@ -153,6 +154,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 			{
 				stream.write(tempBuffer, 0, bytesRead);
 			}
+			in.close();
 		}
 	}
 	
@@ -245,6 +247,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 	{
 		try
 		{
+			System.out.println("loading chunk " + index);
 			return new FileOutputStream(binFiles.get(index));
 		}
 		catch(FileNotFoundException e)
@@ -281,24 +284,28 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 	
 	private void afterClose(int index, boolean recursive)
 	{
+		RandomAccessFile input = null;
 		try
 		{
+			System.out.println("sending chunk " + index + (recursive ? " recursively" : ""));
 			byte[] buffer = new byte[chunkSize / 1024];
 			int bytesRead;
-			RandomAccessFile input = new RandomAccessFile(binFiles.get(index), "rw");
+			input = new RandomAccessFile(binFiles.get(index), "rw");
 			if(!recursive)
 			{
+				System.out.println("incrementing currentChunk to " + (currentChunk + 1));
 				currentChunk++;
 			}
 			else
 			{
-				input.seek(in().readLong());
+				long p = in().readLong();
+				System.out.println("seeking to position " + p);
+				input.seek(p);
 			}
 			
 			while((bytesRead = input.read(buffer)) != -1)
 			{
 				out().write(buffer, 0, bytesRead);
-				in().read();
 				totalBytesSent += bytesRead;
 			}
 			input.close();
@@ -306,18 +313,17 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 		}
 		catch(IOException e)
 		{
+			e.printStackTrace();
 			try
 			{
+				assert input != null : "wut";
+				input.close();
 				updater.stop();
 				TaskHandler.INSTANCE.pause();
-				if(NetworkChangeReceiver.INSTANCE.checkConnection(AppDummy.getContext()))
-				{
-					updater.exec();
-					afterClose(index, true);
-					e.printStackTrace();
-				}
+				updater.exec();
+				afterClose(index, true);
 			}
-			catch(InterruptedException e1)
+			catch(InterruptedException | IOException e1)
 			{
 				e1.printStackTrace();
 			}
@@ -350,7 +356,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 			
 			nChunks = (int) Math.ceil((double) size / chunkSize);
 			
-			binFiles = new ArrayList<>(files.size());
+			binFiles = new ArrayList<>(nChunks);
 			for(int i = 0; i < nChunks; i++)
 			{
 				File f = new File(dataDir, Integer.toString(i) + ".bin");
@@ -360,11 +366,10 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 			
 			out().writeUTF("application/x-java-serialized-object");
 			out().writeLong(size);
-			out().writeInt(files.size());
-			
 			
 			updater.exec();
 			stream = new DynamicSequenceOutputStream(this);
+			stream.write(convertIntToBytes(files.size()));
 			for(Object o : objectsToSend)
 			{
 				writeObject(o);

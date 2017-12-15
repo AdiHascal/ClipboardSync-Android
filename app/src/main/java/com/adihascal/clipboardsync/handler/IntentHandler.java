@@ -40,7 +40,7 @@ public class IntentHandler implements IClipHandler
 					long length = fd.getLength();
 					fd.close();
 					
-					if(length <= 15728640)
+					if(length <= 15728370)
 					{
 						TaskHandler.INSTANCE.setAndRun(new SendTask(u));
 					}

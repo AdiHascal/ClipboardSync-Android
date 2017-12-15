@@ -25,7 +25,6 @@ import static com.adihascal.clipboardsync.network.SocketHolder.terminate;
 @SuppressWarnings({"unused", "ConstantConditions"})
 public class SyncServer extends Thread
 {
-	
 	@Override
 	public synchronized void run()
 	{
@@ -73,7 +72,7 @@ public class SyncServer extends Thread
 							Intent acceptIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("accept");
 							Intent refuseIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("refuse");
 							acceptIntent.putExtra("files", in().readBoolean());
-							NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "ClipboardSync")
+							NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncTransfer")
 									.setSmallIcon(R.drawable.ic_action_create)
 									.setContentText("remote data detected. tap to accept or swipe to ignore")
 									.setContentIntent
