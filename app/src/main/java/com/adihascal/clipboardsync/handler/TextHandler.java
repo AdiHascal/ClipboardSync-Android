@@ -16,6 +16,7 @@ import static com.adihascal.clipboardsync.network.SocketHolder.out;
 public class TextHandler implements IClipHandler
 {
 	@Override
+	@SuppressWarnings("ConstantConditions")
 	public void sendClip(ClipData clip) throws IOException
 	{
 		if(clip.getItemAt(0).getIntent() != null)
@@ -35,7 +36,7 @@ public class TextHandler implements IClipHandler
 		else
 		{
 			out().writeUTF("text/plain");
-			out().writeUTF((String) clip.getItemAt(0).getText());
+			out().writeUTF(clip.getItemAt(0).getText().toString());
 		}
 		NetworkThreadCreator.isBusy = false;
 	}

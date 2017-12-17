@@ -1,9 +1,12 @@
 package com.adihascal.clipboardsync.ui;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -12,6 +15,7 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.SparseArray;
@@ -43,6 +47,15 @@ import static com.adihascal.clipboardsync.reference.Reference.savedData;
 
 public class MainActivity extends AppCompatActivity
 {
+	private BroadcastReceiver disconnectReceiver = new BroadcastReceiver()
+	{
+		@Override
+		public void onReceive(Context context, Intent intent)
+		{
+			MainActivity.this.setDeviceIPTextView(Reference.defaultDeviceName);
+		}
+	};
+	
 	public static void writeToSave()
 	{
 		try
@@ -102,12 +115,14 @@ public class MainActivity extends AppCompatActivity
 		setDeviceIPTextView(Reference.deviceName);
 		setSupportActionBar((Toolbar) findViewById(R.id.actionbar));
 		requestPermissions();
+		LocalBroadcastManager.getInstance(AppDummy.getContext()).registerReceiver(disconnectReceiver, new IntentFilter(Intent.ACTION_DEFAULT));
 	}
 	
 	@Override
 	protected void onPause()
 	{
 		writeToSave();
+		LocalBroadcastManager.getInstance(AppDummy.getContext()).unregisterReceiver(disconnectReceiver);
 		super.onPause();
 	}
 	
@@ -115,7 +130,19 @@ public class MainActivity extends AppCompatActivity
 	protected void onDestroy()
 	{
 		writeToSave();
+		LocalBroadcastManager.getInstance(AppDummy.getContext()).unregisterReceiver(disconnectReceiver);
 		super.onDestroy();
+	}
+	
+	@Override
+	protected void onResume()
+	{
+		if(!SocketHolder.valid())
+		{
+			setDeviceIPTextView(Reference.defaultDeviceName);
+		}
+		LocalBroadcastManager.getInstance(AppDummy.getContext()).registerReceiver(disconnectReceiver, new IntentFilter(Intent.ACTION_DEFAULT));
+		super.onResume();
 	}
 	
 	private void requestPermissions()
@@ -209,6 +236,7 @@ public class MainActivity extends AppCompatActivity
 	}
 	
 	@Override
+	@SuppressWarnings("ConstantConditions")
 	protected void onActivityResult(int requestCode, int resultCode, Intent data)
 	{
 		if(requestCode == 1 && resultCode == RESULT_OK)
@@ -228,7 +256,7 @@ public class MainActivity extends AppCompatActivity
 			catch(Exception e)
 			{
 				e.printStackTrace();
-				Toast.makeText(this, "u r a scrub", Toast.LENGTH_SHORT).show();
+				Toast.makeText(this, "Could not find a qr code. Maybe try again?", Toast.LENGTH_SHORT).show();
 			}
 		}
 		else if(requestCode == 2 && resultCode == DirectoryChooserActivity.RESULT_CODE_DIR_SELECTED)

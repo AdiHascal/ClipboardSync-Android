@@ -14,6 +14,7 @@ import android.os.Build;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.widget.Toast;
 
 import com.adihascal.clipboardsync.R;
@@ -29,6 +30,7 @@ import java.io.IOException;
 
 import static android.support.v4.app.NotificationCompat.PRIORITY_MIN;
 
+@SuppressWarnings("ConstantConditions")
 public class NetworkThreadCreator extends Service
 {
 	public static final String ACTION_CONNECT = "com.adihascal.clipboardsync.action.CONNECT";
@@ -123,6 +125,7 @@ public class NetworkThreadCreator extends Service
 		}
 		finally
 		{
+			LocalBroadcastManager.getInstance(AppDummy.getContext()).sendBroadcast(new Intent(Intent.ACTION_DEFAULT));
 			super.onDestroy();
 		}
 	}
@@ -139,9 +142,9 @@ public class NetworkThreadCreator extends Service
 		super.finalize();
 	}
 	
+	@SuppressWarnings("unused")
 	public static class WtfAndroid2 extends IntentService
 	{
-		
 		public WtfAndroid2(String name)
 		{
 			super(name);
