@@ -18,11 +18,12 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.widget.Toast;
 
 import com.adihascal.clipboardsync.R;
+import com.adihascal.clipboardsync.network.ConnectionListener;
 import com.adihascal.clipboardsync.network.NetworkChangeReceiver;
 import com.adihascal.clipboardsync.network.SocketHolder;
 import com.adihascal.clipboardsync.network.SyncClient;
 import com.adihascal.clipboardsync.network.SyncServer;
-import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.ui.ClipboardSync;
 import com.adihascal.clipboardsync.ui.MainActivity;
 import com.adihascal.clipboardsync.util.ClipboardEventListener;
 
@@ -35,16 +36,16 @@ public class NetworkThreadCreator extends Service
 {
 	public static final String ACTION_CONNECT = "com.adihascal.clipboardsync.action.CONNECT";
 	public static final String ACTION_RECONNECT = "com.adihascal.clipboardsync.action.RECONNECT";
-	private static final PendingIntent openMainIntent = PendingIntent.getActivity(AppDummy.getContext(), 1, new Intent().setClass(AppDummy.getContext(), MainActivity.class), 0);
-	private static final PendingIntent pauseIntent = PendingIntent.getService(AppDummy.getContext(), 2, new Intent().setAction("pause").setClass(AppDummy.getContext(), WtfAndroid2.class), 0);
-	private static final PendingIntent resumeIntent = PendingIntent.getService(AppDummy.getContext(), 2, new Intent().setAction("resume").setClass(AppDummy.getContext(), WtfAndroid2.class), 0);
-	private static final Notification notificationNormal = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncService")
+	private static final PendingIntent openMainIntent = PendingIntent.getActivity(ClipboardSync.getContext(), 1, new Intent().setClass(ClipboardSync.getContext(), MainActivity.class), 0);
+	private static final PendingIntent pauseIntent = PendingIntent.getService(ClipboardSync.getContext(), 2, new Intent().setAction("pause").setClass(ClipboardSync.getContext(), WtfAndroid2.class), 0);
+	private static final PendingIntent resumeIntent = PendingIntent.getService(ClipboardSync.getContext(), 2, new Intent().setAction("resume").setClass(ClipboardSync.getContext(), WtfAndroid2.class), 0);
+	private static final Notification notificationNormal = new NotificationCompat.Builder(ClipboardSync.getContext(), "CSyncService")
 			.setSmallIcon(R.mipmap.ic_launcher)
 			.setContentTitle("ClipboardSync is running")
 			.setContentIntent(openMainIntent)
 			.setPriority(PRIORITY_MIN)
 			.addAction(R.drawable.ic_play_arrow_black_24dp, "pause", pauseIntent).build();
-	private static final Notification notificationPaused = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncService")
+	private static final Notification notificationPaused = new NotificationCompat.Builder(ClipboardSync.getContext(), "CSyncService")
 			.setSmallIcon(R.mipmap.ic_launcher)
 			.setContentTitle("ClipboardSync is running")
 			.setContentIntent(openMainIntent)
@@ -66,11 +67,11 @@ public class NetworkThreadCreator extends Service
 		{
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
 			{
-				NotificationManager manager = ((NotificationManager) AppDummy.getContext().getSystemService(NOTIFICATION_SERVICE));
+				NotificationManager manager = ((NotificationManager) ClipboardSync.getContext().getSystemService(NOTIFICATION_SERVICE));
 				manager.createNotificationChannel(new NotificationChannel("CSyncService", "ClipboardSync Service", NotificationManager.IMPORTANCE_MIN));
 				manager.createNotificationChannel(new NotificationChannel("CSyncTransfer", "ClipboardSync Data Transfers", NotificationManager.IMPORTANCE_DEFAULT));
 			}
-			AppDummy.getContext().registerReceiver(NetworkChangeReceiver.INSTANCE, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+			ClipboardSync.getContext().registerReceiver(NetworkChangeReceiver.INSTANCE, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
 			NetworkChangeReceiver.INSTANCE.init = true;
 		}
 		
@@ -93,10 +94,15 @@ public class NetworkThreadCreator extends Service
 				String address = intent.getStringExtra("device_address");
 				if(address != null)
 				{
+					if(ClipboardSync.listenerInit)
+					{
+						ClipboardSync.getContext().stopService(new Intent(ClipboardSync.getContext(), ConnectionListener.class));
+						ClipboardSync.listenerInit = false;
+					}
 					startForeground(3, notificationNormal);
 					SyncClient.address = address;
 					SyncClient.init = false;
-					((ClipboardManager) AppDummy.getContext().getSystemService(CLIPBOARD_SERVICE)).addPrimaryClipChangedListener(ClipboardEventListener.INSTANCE);
+					((ClipboardManager) ClipboardSync.getContext().getSystemService(CLIPBOARD_SERVICE)).addPrimaryClipChangedListener(ClipboardEventListener.INSTANCE);
 					SyncClient.service = this;
 					new SyncClient("connect", null).start();
 				}
@@ -112,7 +118,7 @@ public class NetworkThreadCreator extends Service
 		{
 			MainActivity.writeToSave();
 			new SyncClient("disconnect", null).start();
-			Toast.makeText(AppDummy.getContext(), "ClipboardSync service stopped", Toast.LENGTH_SHORT).show();
+			Toast.makeText(ClipboardSync.getContext(), "ClipboardSync service stopped", Toast.LENGTH_SHORT).show();
 			if(SocketHolder.valid())
 			{
 				SocketHolder.getSocket().close();
@@ -125,7 +131,7 @@ public class NetworkThreadCreator extends Service
 		}
 		finally
 		{
-			LocalBroadcastManager.getInstance(AppDummy.getContext()).sendBroadcast(new Intent(Intent.ACTION_DEFAULT));
+			LocalBroadcastManager.getInstance(ClipboardSync.getContext()).sendBroadcast(new Intent(Intent.ACTION_DEFAULT));
 			super.onDestroy();
 		}
 	}
@@ -159,7 +165,7 @@ public class NetworkThreadCreator extends Service
 		protected void onHandleIntent(@Nullable Intent intent)
 		{
 			paused = intent.getAction().equals("pause");
-			AppDummy.getContext().startService(new Intent(AppDummy.getContext(), NetworkThreadCreator.class).setAction("refreshNotification"));
+			ClipboardSync.getContext().startService(new Intent(ClipboardSync.getContext(), NetworkThreadCreator.class).setAction("refreshNotification"));
 			new SyncClient(intent.getAction(), null).start();
 		}
 	}

@@ -9,7 +9,7 @@ import android.net.Uri;
 import com.adihascal.clipboardsync.tasks.MultiSendTask;
 import com.adihascal.clipboardsync.tasks.ReceiveTask;
 import com.adihascal.clipboardsync.tasks.SendTask;
-import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.ui.ClipboardSync;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -36,7 +36,7 @@ public class IntentHandler implements IClipHandler
 				Uri u = intent.getParcelableExtra(Intent.EXTRA_STREAM);
 				if(!intent.getType().equals("folder"))
 				{
-					AssetFileDescriptor fd = AppDummy.getContext().getContentResolver().openAssetFileDescriptor(u, "r");
+					AssetFileDescriptor fd = ClipboardSync.getContext().getContentResolver().openAssetFileDescriptor(u, "r");
 					long length = fd.getLength();
 					fd.close();
 					
@@ -67,7 +67,7 @@ public class IntentHandler implements IClipHandler
 	}
 	
 	@Override
-	public void receiveClip(ClipboardManager manager) throws IOException
+	public void receiveClip(ClipboardManager manager)
 	{
 		TaskHandler.INSTANCE.setAndRun(new ReceiveTask());
 	}

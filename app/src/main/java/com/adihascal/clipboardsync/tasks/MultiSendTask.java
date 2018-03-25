@@ -7,7 +7,7 @@ import android.support.v4.app.NotificationCompat;
 
 import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.handler.TaskHandler;
-import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.ui.ClipboardSync;
 import com.adihascal.clipboardsync.util.DynamicSequenceOutputStream;
 import com.adihascal.clipboardsync.util.IStreamSupplier;
 import com.adihascal.clipboardsync.util.UriUtils;
@@ -30,13 +30,13 @@ import static com.adihascal.clipboardsync.network.SocketHolder.out;
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 {
-	private static final NotificationManager manager = (NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncTransfer")
+	private static final NotificationManager manager = (NotificationManager) ClipboardSync.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(ClipboardSync.getContext(), "CSyncTransfer")
 			.setContentTitle("uploading")
 			.setContentText("")
 			.setSmallIcon(R.drawable.ic_file_upload_black_24dp)
 			.setSound(null);
-	private static final File dataDir = AppDummy.getContext().getCacheDir();
+	private static final File dataDir = ClipboardSync.getContext().getCacheDir();
 	private static final int chunkSize = 15728640;
 	private final NotificationUpdater updater = new NotificationUpdater();
 	private List<File> files;
@@ -97,7 +97,7 @@ public class MultiSendTask implements IStreamSupplier<OutputStream>, ITask
 		for(int i = 0; i < uris.size(); i++)
 		{
 			Uri u = uris.get(i);
-			files.add(i, new File(UriUtils.getPath(AppDummy.getContext(), u))); //order is important
+			files.add(i, new File(UriUtils.getPath(ClipboardSync.getContext(), u))); //order is important
 		}
 	}
 	

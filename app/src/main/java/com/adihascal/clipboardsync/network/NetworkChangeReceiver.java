@@ -12,7 +12,7 @@ import android.support.v4.app.NotificationCompat;
 import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.handler.TaskHandler;
 import com.adihascal.clipboardsync.service.NetworkThreadCreator;
-import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.ui.ClipboardSync;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -22,7 +22,7 @@ import static android.net.ConnectivityManager.TYPE_WIFI;
 public class NetworkChangeReceiver extends BroadcastReceiver
 {
 	public static final NetworkChangeReceiver INSTANCE = new NetworkChangeReceiver();
-	private final Notification notification = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncTransfer")
+	private final Notification notification = new NotificationCompat.Builder(ClipboardSync.getContext(), "CSyncTransfer")
 			.setContentTitle("connection interrupted")
 			.setSmallIcon(R.drawable.ic_error_black_24dp)
 			.setProgress(0, 0, true).build();

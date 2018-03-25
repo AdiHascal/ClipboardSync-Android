@@ -5,7 +5,7 @@ import android.net.Uri;
 import android.provider.OpenableColumns;
 
 import com.adihascal.clipboardsync.handler.TaskHandler;
-import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.ui.ClipboardSync;
 import com.adihascal.clipboardsync.util.UriUtils;
 
 import java.io.File;
@@ -48,7 +48,7 @@ public class SendTask implements ITask
 	
 	private void sendAsFile() throws Exception
 	{
-		File f = new File(UriUtils.getPath(AppDummy.getContext(), contentUri));
+		File f = new File(UriUtils.getPath(ClipboardSync.getContext(), contentUri));
 		out().writeUTF("fucking retards");
 		out().writeLong(14 + getUTFLength(f.getName()) + f.length());
 		out().writeInt(1);
@@ -68,7 +68,7 @@ public class SendTask implements ITask
 	
 	private void sendAsUri() throws Exception
 	{
-		Cursor cursor = AppDummy.getContext().getContentResolver().query(contentUri, new String[]{OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE}, null, null, null);
+		Cursor cursor = ClipboardSync.getContext().getContentResolver().query(contentUri, new String[]{OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE}, null, null, null);
 		int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
 		int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
 		cursor.moveToFirst();
@@ -83,7 +83,7 @@ public class SendTask implements ITask
 		out().writeUTF(fileName);
 		out().writeLong(fileSize);
 		
-		FileInputStream fileIn = (FileInputStream) AppDummy.getContext().getContentResolver().openInputStream(contentUri);
+		FileInputStream fileIn = (FileInputStream) ClipboardSync.getContext().getContentResolver().openInputStream(contentUri);
 		byte[] buffer = new byte[fileSize];
 		fileIn.read(buffer, 0, buffer.length);
 		out().write(buffer, 0, buffer.length);

@@ -13,7 +13,7 @@ import android.support.v4.app.NotificationCompat;
 import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.handler.ClipHandlerRegistry;
 import com.adihascal.clipboardsync.service.NetworkThreadCreator;
-import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.ui.ClipboardSync;
 import com.adihascal.clipboardsync.ui.DestinationChooserActivity;
 
 import java.io.IOException;
@@ -62,29 +62,29 @@ public class SyncServer extends Thread
 					{
 						case "receive":
 							NetworkThreadCreator.isBusy = true;
-							ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+							ClipboardManager manager = (ClipboardManager) ClipboardSync.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
 							ClipHandlerRegistry.getHandlerFor(in().readUTF()).receiveClip(manager);
 							break;
 						case "disconnect":
-							AppDummy.getContext().stopService(new Intent(AppDummy.getContext(), NetworkThreadCreator.class));
+							ClipboardSync.getContext().stopService(new Intent(ClipboardSync.getContext(), NetworkThreadCreator.class));
 							return;
 						case "announce":
-							Intent acceptIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("accept");
-							Intent refuseIntent = new Intent().setClass(AppDummy.getContext(), WtfAndroid.class).setAction("refuse");
+							Intent acceptIntent = new Intent().setClass(ClipboardSync.getContext(), WtfAndroid.class).setAction("accept");
+							Intent refuseIntent = new Intent().setClass(ClipboardSync.getContext(), WtfAndroid.class).setAction("refuse");
 							acceptIntent.putExtra("files", in().readBoolean());
-							NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncTransfer")
+							NotificationCompat.Builder builder = new NotificationCompat.Builder(ClipboardSync.getContext(), "CSyncTransfer")
 									.setSmallIcon(R.drawable.ic_action_create)
 									.setContentText("remote data detected. tap to accept or swipe to ignore")
 									.setContentIntent
 											(
-													PendingIntent.getService(AppDummy.getContext(), 12, acceptIntent, PendingIntent.FLAG_CANCEL_CURRENT)
+													PendingIntent.getService(ClipboardSync.getContext(), 12, acceptIntent, PendingIntent.FLAG_CANCEL_CURRENT)
 											)
 									.setDeleteIntent
 											(
-													PendingIntent.getService(AppDummy.getContext(), 13, refuseIntent, PendingIntent.FLAG_CANCEL_CURRENT)
+													PendingIntent.getService(ClipboardSync.getContext(), 13, refuseIntent, PendingIntent.FLAG_CANCEL_CURRENT)
 											)
 									.setAutoCancel(true);
-							((NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE)).notify(4, builder.build());
+							((NotificationManager) ClipboardSync.getContext().getSystemService(Context.NOTIFICATION_SERVICE)).notify(4, builder.build());
 							break;
 					}
 				}
@@ -130,7 +130,7 @@ public class SyncServer extends Thread
 					case "accept":
 						if(intent.getBooleanExtra("files", false))
 						{
-							AppDummy.getContext().startActivity(new Intent().setClass(AppDummy.getContext(), DestinationChooserActivity.class));
+							ClipboardSync.getContext().startActivity(new Intent().setClass(ClipboardSync.getContext(), DestinationChooserActivity.class));
 						}
 						else
 						{

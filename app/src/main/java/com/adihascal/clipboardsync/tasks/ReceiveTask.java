@@ -10,7 +10,7 @@ import android.support.v4.app.NotificationCompat;
 import com.adihascal.clipboardsync.R;
 import com.adihascal.clipboardsync.handler.TaskHandler;
 import com.adihascal.clipboardsync.network.SocketHolder;
-import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.ui.ClipboardSync;
 import com.adihascal.clipboardsync.util.DynamicSequenceInputStream;
 import com.adihascal.clipboardsync.util.IStreamSupplier;
 
@@ -30,8 +30,8 @@ import static com.adihascal.clipboardsync.network.SocketHolder.out;
 
 public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 {
-	private static final NotificationManager manager = (NotificationManager) AppDummy.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(AppDummy.getContext(), "CSyncTransfer")
+	private static final NotificationManager manager = (NotificationManager) ClipboardSync.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+	private static final NotificationCompat.Builder builder = new NotificationCompat.Builder(ClipboardSync.getContext(), "CSyncTransfer")
 			.setContentTitle("downloading")
 			.setSmallIcon(R.drawable.ic_file_download_black_24dp)
 			.setSound(null);
@@ -104,7 +104,7 @@ public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 			
 			for(int i = 0; i < nChunks; i++)
 			{
-				File f = new File(AppDummy.getContext().getCacheDir(), Integer.toString(i) + ".bin");
+				File f = new File(ClipboardSync.getContext().getCacheDir(), Integer.toString(i) + ".bin");
 				f.createNewFile();
 				RandomAccessFile raf = new RandomAccessFile(f, "rw");
 				System.out.println("receiving chunk " + i);
@@ -141,7 +141,7 @@ public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 	{
 		try
 		{
-			return new FileInputStream(new File(AppDummy.getContext().getCacheDir(), Integer.toString(index) + ".bin"));
+			return new FileInputStream(new File(ClipboardSync.getContext().getCacheDir(), Integer.toString(index) + ".bin"));
 		}
 		catch(FileNotFoundException e)
 		{
@@ -159,7 +159,7 @@ public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 	@Override
 	public void afterClose(int index)
 	{
-		new File(AppDummy.getContext().getCacheDir(), Integer.toString(index) + ".bin").delete();
+		new File(ClipboardSync.getContext().getCacheDir(), Integer.toString(index) + ".bin").delete();
 	}
 	
 	@Override
@@ -184,7 +184,7 @@ public class ReceiveTask implements ITask, IStreamSupplier<InputStream>
 		public Unpacker(IStreamSupplier<InputStream> supplier)
 		{
 			this.supplier = supplier;
-			ClipboardManager manager = (ClipboardManager) AppDummy.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+			ClipboardManager manager = (ClipboardManager) ClipboardSync.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
 			assert manager != null;
 			Intent intent = manager.getPrimaryClip().getItemAt(0).getIntent();
 			this.dest = intent.getStringExtra("folder");

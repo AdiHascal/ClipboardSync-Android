@@ -115,14 +115,14 @@ public class MainActivity extends AppCompatActivity
 		setDeviceIPTextView(Reference.deviceName);
 		setSupportActionBar((Toolbar) findViewById(R.id.actionbar));
 		requestPermissions();
-		LocalBroadcastManager.getInstance(AppDummy.getContext()).registerReceiver(disconnectReceiver, new IntentFilter(Intent.ACTION_DEFAULT));
+		LocalBroadcastManager.getInstance(ClipboardSync.getContext()).registerReceiver(disconnectReceiver, new IntentFilter(Intent.ACTION_DEFAULT));
 	}
 	
 	@Override
 	protected void onPause()
 	{
 		writeToSave();
-		LocalBroadcastManager.getInstance(AppDummy.getContext()).unregisterReceiver(disconnectReceiver);
+		LocalBroadcastManager.getInstance(ClipboardSync.getContext()).unregisterReceiver(disconnectReceiver);
 		super.onPause();
 	}
 	
@@ -130,7 +130,7 @@ public class MainActivity extends AppCompatActivity
 	protected void onDestroy()
 	{
 		writeToSave();
-		LocalBroadcastManager.getInstance(AppDummy.getContext()).unregisterReceiver(disconnectReceiver);
+		LocalBroadcastManager.getInstance(ClipboardSync.getContext()).unregisterReceiver(disconnectReceiver);
 		super.onDestroy();
 	}
 	
@@ -141,7 +141,7 @@ public class MainActivity extends AppCompatActivity
 		{
 			setDeviceIPTextView(Reference.defaultDeviceName);
 		}
-		LocalBroadcastManager.getInstance(AppDummy.getContext()).registerReceiver(disconnectReceiver, new IntentFilter(Intent.ACTION_DEFAULT));
+		LocalBroadcastManager.getInstance(ClipboardSync.getContext()).registerReceiver(disconnectReceiver, new IntentFilter(Intent.ACTION_DEFAULT));
 		super.onResume();
 	}
 	

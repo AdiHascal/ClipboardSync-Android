@@ -8,7 +8,7 @@ import android.provider.Settings;
 import com.adihascal.clipboardsync.handler.ClipHandlerRegistry;
 import com.adihascal.clipboardsync.handler.TaskHandler;
 import com.adihascal.clipboardsync.service.NetworkThreadCreator;
-import com.adihascal.clipboardsync.ui.AppDummy;
+import com.adihascal.clipboardsync.ui.ClipboardSync;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -34,7 +34,7 @@ public class SyncClient extends Thread
 	
 	private String getIPAddress()
 	{
-		int ipAddress = ((WifiManager) AppDummy.getContext().getApplicationContext().getSystemService(WIFI_SERVICE)).getConnectionInfo().getIpAddress();
+		int ipAddress = ((WifiManager) ClipboardSync.getContext().getApplicationContext().getSystemService(WIFI_SERVICE)).getConnectionInfo().getIpAddress();
 		return String.format(Locale.ENGLISH, "%d.%d.%d.%d", (ipAddress & 0xff), (ipAddress >> 8 & 0xff), (ipAddress >> 16 & 0xff), (ipAddress >> 24 & 0xff));
 	}
 	
@@ -67,7 +67,7 @@ public class SyncClient extends Thread
 				case "connect":
 					out().writeUTF("connect");
 					out().writeUTF(getIPAddress());
-					out().writeUTF(Settings.Secure.getString(AppDummy.getContext().getContentResolver(), "bluetooth_name"));
+					out().writeUTF(Settings.Secure.getString(ClipboardSync.getContext().getContentResolver(), "bluetooth_name"));
 					break;
 				case "disconnect":
 					out().writeUTF(this.command);
